@@ -12,20 +12,8 @@ import (
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
 )
 
-func Serve(server *http.Server) {
-	// make a channel for os signals
-	done := make(chan os.Signal, 1)
-	// detect terminating signal
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	// run server on seperate thread
-	go func() {
-		slog.Info("order Controller started", slog.String("address", "localhost:9000"))
-		err := server.ListenAndServe()
-		errhandler.FailOnError(err, "Failed to start server")
-	}()
-
-	<-done
+func Serve(server *http.Server, f func()) {
+	Async(f)
 
 	slog.Info("shutting down the server")
 	// create a context with 5sec exp
@@ -37,4 +25,17 @@ func Serve(server *http.Server) {
 	errhandler.FailOnError(err, "Failed to shutdown server")
 
 	slog.Info("server shut down successfully")
+}
+
+func Async(f func()) {
+	// make a channel for os signals
+	done := make(chan os.Signal, 1)
+	// detect terminating signal
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		f()
+	}()
+
+	<-done
 }

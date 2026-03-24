@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/types"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
@@ -42,12 +44,19 @@ func OrderController() {
 			return
 		}
 
+		order.Status = types.OrderCreated
+		order.OrderID = uuid.New().String()
+		order.CreatedAt = time.Now()
+		order.UpdatedAt = time.Now()
+
 		// convert to json
 		jsonBody, err := json.Marshal(order)
 		errhandler.LogOnError(err, "Failed to marshal body")
 
 		// send to queue
 		rabbitmq.SendMessage(ch, q, jsonBody)
+
+		response.WriteJson(w, http.StatusOK, map[string]string{"success": "ok"})
 	})
 
 	// setup server
@@ -56,6 +65,9 @@ func OrderController() {
 		Handler: router,
 	}
 
-	serverhandler.Serve(server)
-
+	serverhandler.Serve(server, func() {
+		slog.Info("Order Controller started", slog.String("address", "localhost:9000"))
+		err := server.ListenAndServe()
+		errhandler.FailOnError(err, "Failed to start server")
+	})
 }

@@ -6,13 +6,13 @@ import (
 	"time"
 
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
-	"github.com/rabbitmq/amqp091-go"
+	serverhandler "github.com/paragkatoch/Devops-DSOLS/util/serverHandler"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func New() (*amqp.Connection, *amqp.Channel) {
 	// connect
-	conn, err := amqp091.Dial("amqp://guest:guest@localhost:5672/")
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	errhandler.FailOnError(err, "Failed to connect to RabbitMQ")
 
 	// get channel
@@ -51,7 +51,7 @@ func SendMessage(ch *amqp.Channel, q amqp.Queue, body []byte) {
 			Body:        body,
 		})
 	errhandler.FailOnError(err, "Failed to publish a message")
-	log.Printf(" [x] Sent %s\n", body)
+	log.Println(" [+] Sent a message")
 }
 
 func ReceiveMessage(ch *amqp.Channel, q amqp.Queue, handler func([]byte)) {
@@ -66,14 +66,13 @@ func ReceiveMessage(ch *amqp.Channel, q amqp.Queue, handler func([]byte)) {
 	)
 	errhandler.FailOnError(err, "Failed to register a consumer")
 
-	var forever chan struct{}
+	serverhandler.Async(func() {
+		log.Println(" [*] Waiting for messages.")
 
-	go func() {
 		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
+			log.Println(" [-] Received a message")
+			handler(d.Body)
 		}
-	}()
+	})
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
-	<-forever
 }
