@@ -6,7 +6,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	config "github.com/paragkatoch/Devops-DSOLS/internal"
-	setupdb "github.com/paragkatoch/Devops-DSOLS/util/DB"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
 )
 
@@ -21,7 +20,6 @@ func New(cfg *config.Config) *Postgres {
 		cfg.Storage_path,
 	)
 	errhandler.FailOnError(err, "Unable to connect ot DB")
-	setupdb.Init(conn)
 
 	return &Postgres{
 		Db: conn,

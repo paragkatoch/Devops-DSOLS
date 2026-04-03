@@ -14,7 +14,19 @@ import (
 
 func New(cfg *config.Config) (*amqp.Connection, *amqp.Channel) {
 	// connect
-	conn, err := amqp.Dial(cfg.Queue_path)
+	var conn *amqp.Connection
+	var err error
+
+	for i := 0; i < 10; i++ {
+		conn, err = amqp.Dial(cfg.Queue_path)
+		if err == nil {
+			break
+		}
+
+		log.Println("RabbitMQ not ready, retrying...")
+		time.Sleep(2 * time.Second)
+	}
+	// conn, err = amqp.Dial(cfg.Queue_path)
 	errhandler.FailOnError(err, "Failed to connect to RabbitMQ")
 
 	// get channel
