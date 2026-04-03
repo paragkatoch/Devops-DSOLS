@@ -1,7 +1,49 @@
 package services
 
-import "log/slog"
+import (
+	"encoding/json"
+	"log/slog"
 
-func UserService() {
+	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
+	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
+	"github.com/paragkatoch/Devops-DSOLS/types"
+	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
+)
+
+func UserService(storage storage.Storage) {
 	slog.Info("Hello from user service")
+
+	// connect to queue
+	conn, ch := rabbitmq.New()
+
+	defer conn.Close()
+	defer ch.Close()
+
+	q := rabbitmq.Connect(ch, "user")
+
+	// receive messages from queue
+	rabbitmq.ReceiveMessage(ch, q, func(b []byte) {
+		// parse message event
+		var event types.RabbitEvent
+		err := json.Unmarshal(b, &event)
+		if errhandler.LogOnError(err, "UserService: Error parsing RabbitEvent") {
+			return
+		}
+
+		switch event.Type {
+
+		case types.UserCreate:
+			// parse message data
+			var user types.User
+			err := json.Unmarshal(event.Data, &user)
+			if errhandler.LogOnError(err, "UserService: Error parsing User") {
+				return
+			}
+
+			err = storage.CreateUser(user)
+			if errhandler.LogOnError(err, "Failed to create User") {
+				return
+			}
+		}
+	})
 }

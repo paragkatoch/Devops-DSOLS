@@ -15,8 +15,10 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 )
 
-func UserController(storage storage.Storage) {
-	slog.Info("Hello from user controller")
+var validate = validator.New()
+
+func ProductController(storage storage.Storage) {
+	slog.Info("Hello from product controller")
 
 	// connect to queue
 	conn, ch := rabbitmq.New()
@@ -24,14 +26,14 @@ func UserController(storage storage.Storage) {
 	defer conn.Close()
 	defer ch.Close()
 
-	q := rabbitmq.Connect(ch, "user")
+	q := rabbitmq.Connect(ch, "product")
 
 	// setup router
 	router := http.NewServeMux()
-	router.HandleFunc("POST /api/user", CreateUser(ch, q))
-	router.HandleFunc("GET /api/user/{id}/order", GetUserOrders(storage))
-	router.HandleFunc("GET /api/user/{id}", GetUser(storage))
-	router.HandleFunc("GET /api/user", GetUsers(storage))
+	router.HandleFunc("POST /api/product", CreateProduct(ch, q))
+	router.HandleFunc("GET /api/product/{id}", GetProduct(storage))
+	router.HandleFunc("GET /api/product", GetProducts(storage))
+	router.HandleFunc("POST /api/product/quantity", UpdateProductQuantity(ch, q))
 
 	// setup server
 	server := &http.Server{
@@ -40,37 +42,37 @@ func UserController(storage storage.Storage) {
 	}
 
 	serverhandler.Serve(server, func() {
-		slog.Info("User Controller started", slog.String("address", "localhost:9000"))
+		slog.Info("Product Controller started", slog.String("address", "localhost:9000"))
 		err := server.ListenAndServe()
 		errhandler.FailOnError(err, "Failed to start server")
 	})
 }
 
-func CreateUser(ch *amqp091.Channel, q amqp091.Queue) http.HandlerFunc {
+func CreateProduct(ch *amqp091.Channel, q amqp091.Queue) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var user types.User
+		var product types.Product
 
 		// parse
-		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
 			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
 			return
 		}
 
 		// validate
-		if err := validate.Struct(&user); err != nil {
+		if err := validate.Struct(&product); err != nil {
 			validationErr := err.(validator.ValidationErrors)
 			response.WriteJson(w, http.StatusBadRequest, response.ValidationError(validationErr))
 			return
 		}
 
 		// convert to json
-		jsonBody, err := json.Marshal(user)
+		jsonBody, err := json.Marshal(product)
 		if errhandler.LogOnError(err, "Failed to marshal body") {
 			return
 		}
 
 		event := types.RabbitEvent{
-			Type: types.UserCreate,
+			Type: types.ProductCreate,
 			Data: jsonBody,
 		}
 
@@ -86,48 +88,74 @@ func CreateUser(ch *amqp091.Channel, q amqp091.Queue) http.HandlerFunc {
 	}
 }
 
-func GetUser(storage storage.Storage) http.HandlerFunc {
+func GetProduct(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var product types.Product
+
 		// parse
 		id := r.PathValue(("id"))
-		slog.Info("getting user with", slog.String("id", id))
+		slog.Info("getting a product with", slog.String("id", id))
 
-		user, err := storage.GetUser(id)
+		product, err := storage.GetProduct(id)
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
-		response.WriteJson(w, http.StatusOK, user)
+		response.WriteJson(w, http.StatusOK, product)
 	}
 }
 
-func GetUsers(storage storage.Storage) http.HandlerFunc {
+func GetProducts(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		users, err := storage.GetUsers()
+		products, err := storage.GetProducts()
 
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
-		response.WriteJson(w, http.StatusOK, users)
+		response.WriteJson(w, http.StatusOK, products)
 	}
 }
 
-func GetUserOrders(storage storage.Storage) http.HandlerFunc {
+func UpdateProductQuantity(ch *amqp091.Channel, q amqp091.Queue) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// parse
-		id := r.PathValue(("id"))
-		slog.Info("getting user orders with", slog.String("userId", id))
+		// request body
+		var req struct {
+			Id       string `json:"id" validate:"required"`
+			Quantity int    `json:"quantity" validate:"required"`
+		}
 
-		orders, err := storage.GetUserOrders(id)
-		if err != nil {
+		// parse
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+			return
+		}
+
+		// validate
+		if err := validate.Struct(&req); err != nil {
+			response.WriteJson(w, http.StatusBadRequest, response.ValidationError(err.(validator.ValidationErrors)))
+			return
+		}
+
+		// convert to json
+		jsonBody, err := json.Marshal(req)
+		if errhandler.LogOnError(err, "Failed to marshal body") {
+			return
+		}
+
+		event := types.RabbitEvent{
+			Type: types.ProductQuantity,
+			Data: jsonBody,
+		}
+		// send to queue
+		err = rabbitmq.SendMessage(ch, q, event)
+		if errhandler.LogOnError(err, "Failed to send event") {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return
 		}
 
-		response.WriteJson(w, http.StatusOK, orders)
+		response.WriteJson(w, http.StatusOK, map[string]string{"success": "queued"})
 	}
-
 }

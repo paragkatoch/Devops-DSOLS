@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"time"
 
@@ -37,21 +38,31 @@ func Connect(ch *amqp.Channel, channel string) amqp.Queue {
 	return q
 }
 
-func SendMessage(ch *amqp.Channel, q amqp.Queue, body []byte) {
+func SendMessage(ch *amqp.Channel, q amqp.Queue, body interface{}) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := ch.PublishWithContext(ctx,
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	err = ch.PublishWithContext(ctx,
 		"",     // exchange
 		q.Name, // routing key
 		false,  // mandatory
 		false,  // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
-			Body:        body,
+			Body:        jsonBody,
 		})
-	errhandler.FailOnError(err, "Failed to publish a message")
+
+	if err != nil {
+		return err
+	}
+
 	log.Println(" [+] Sent a message")
+	return nil
 }
 
 func ReceiveMessage(ch *amqp.Channel, q amqp.Queue, handler func([]byte)) {
@@ -64,6 +75,7 @@ func ReceiveMessage(ch *amqp.Channel, q amqp.Queue, handler func([]byte)) {
 		false,  // no-wait
 		nil,    // args
 	)
+
 	errhandler.FailOnError(err, "Failed to register a consumer")
 
 	serverhandler.Async(func() {
@@ -74,5 +86,4 @@ func ReceiveMessage(ch *amqp.Channel, q amqp.Queue, handler func([]byte)) {
 			handler(d.Body)
 		}
 	})
-
 }

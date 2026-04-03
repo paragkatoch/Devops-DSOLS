@@ -11,8 +11,10 @@ func FailOnError(err error, msg string) {
 	}
 }
 
-func LogOnError(err error, msg string) {
+func LogOnError(err error, msg string) bool {
 	if err != nil {
-		slog.Error(msg, slog.String("error", err.Error()))
+		slog.Error(msg, slog.Any("error", err))
+		return true
 	}
+	return false
 }

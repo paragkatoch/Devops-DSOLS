@@ -9,13 +9,14 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
+	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
 	"github.com/paragkatoch/Devops-DSOLS/util/response"
 	serverhandler "github.com/paragkatoch/Devops-DSOLS/util/serverHandler"
 )
 
-func OrderController() {
+func OrderController(storage storage.Storage) {
 	slog.Info("Hello from order controller")
 
 	// connect to queue
@@ -45,13 +46,15 @@ func OrderController() {
 		}
 
 		order.Status = types.OrderCreated
-		order.OrderID = uuid.New().String()
+		order.Id = uuid.New().String()
 		order.CreatedAt = time.Now()
 		order.UpdatedAt = time.Now()
 
 		// convert to json
 		jsonBody, err := json.Marshal(order)
-		errhandler.LogOnError(err, "Failed to marshal body")
+		if errhandler.LogOnError(err, "Failed to marshal body") {
+			return
+		}
 
 		// send to queue
 		rabbitmq.SendMessage(ch, q, jsonBody)

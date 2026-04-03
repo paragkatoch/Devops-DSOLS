@@ -6,10 +6,11 @@ import (
 	"log/slog"
 
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
+	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
 )
 
-func OrderService() {
+func OrderService(storage storage.Storage) {
 	slog.Info("Hello from order service")
 
 	// connect to queue
