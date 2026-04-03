@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	config "github.com/paragkatoch/Devops-DSOLS/internal"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
@@ -16,11 +17,11 @@ import (
 	serverhandler "github.com/paragkatoch/Devops-DSOLS/util/serverHandler"
 )
 
-func OrderController(storage storage.Storage) {
+func OrderController(storage storage.Storage, cfg *config.Config) {
 	slog.Info("Hello from order controller")
 
 	// connect to queue
-	conn, ch := rabbitmq.New()
+	conn, ch := rabbitmq.New(cfg)
 
 	defer conn.Close()
 	defer ch.Close()
@@ -64,12 +65,12 @@ func OrderController(storage storage.Storage) {
 
 	// setup server
 	server := &http.Server{
-		Addr:    "localhost:9000",
+		Addr:    cfg.HTTPServer.Addr,
 		Handler: router,
 	}
 
 	serverhandler.Serve(server, func() {
-		slog.Info("Order Controller started", slog.String("address", "localhost:9000"))
+		slog.Info("Order Controller started", slog.String("address", cfg.HTTPServer.Addr))
 		err := server.ListenAndServe()
 		errhandler.FailOnError(err, "Failed to start server")
 	})

@@ -5,16 +5,17 @@ import (
 	"log"
 	"log/slog"
 
+	config "github.com/paragkatoch/Devops-DSOLS/internal"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
 )
 
-func OrderService(storage storage.Storage) {
+func OrderService(storage storage.Storage, cfg *config.Config) {
 	slog.Info("Hello from order service")
 
 	// connect to queue
-	conn, ch := rabbitmq.New()
+	conn, ch := rabbitmq.New(cfg)
 
 	defer conn.Close()
 	defer ch.Close()

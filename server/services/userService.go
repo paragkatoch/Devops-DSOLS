@@ -4,17 +4,18 @@ import (
 	"encoding/json"
 	"log/slog"
 
+	config "github.com/paragkatoch/Devops-DSOLS/internal"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
 )
 
-func UserService(storage storage.Storage) {
+func UserService(storage storage.Storage, cfg *config.Config) {
 	slog.Info("Hello from user service")
 
 	// connect to queue
-	conn, ch := rabbitmq.New()
+	conn, ch := rabbitmq.New(cfg)
 
 	defer conn.Close()
 	defer ch.Close()

@@ -1,0 +1,5 @@
+env: "local"
+storage_path: "postgres://admin:admin@localhost:5432/retail?sslmode=disable"
+queue_path: "amqp://guest:guest@localhost:5672/"
+http_server:
+  address: "localhost:9000"

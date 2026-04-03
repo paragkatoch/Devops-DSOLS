@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
+	config "github.com/paragkatoch/Devops-DSOLS/internal"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
@@ -17,11 +18,11 @@ import (
 
 var validate = validator.New()
 
-func ProductController(storage storage.Storage) {
+func ProductController(storage storage.Storage, cfg *config.Config) {
 	slog.Info("Hello from product controller")
 
 	// connect to queue
-	conn, ch := rabbitmq.New()
+	conn, ch := rabbitmq.New(cfg)
 
 	defer conn.Close()
 	defer ch.Close()
@@ -37,12 +38,12 @@ func ProductController(storage storage.Storage) {
 
 	// setup server
 	server := &http.Server{
-		Addr:    "localhost:9000",
+		Addr:    cfg.HTTPServer.Addr,
 		Handler: router,
 	}
 
 	serverhandler.Serve(server, func() {
-		slog.Info("Product Controller started", slog.String("address", "localhost:9000"))
+		slog.Info("Product Controller started", slog.String("address", cfg.HTTPServer.Addr))
 		err := server.ListenAndServe()
 		errhandler.FailOnError(err, "Failed to start server")
 	})

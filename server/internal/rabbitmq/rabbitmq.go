@@ -6,14 +6,15 @@ import (
 	"log"
 	"time"
 
+	config "github.com/paragkatoch/Devops-DSOLS/internal"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
 	serverhandler "github.com/paragkatoch/Devops-DSOLS/util/serverHandler"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func New() (*amqp.Connection, *amqp.Channel) {
+func New(cfg *config.Config) (*amqp.Connection, *amqp.Channel) {
 	// connect
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	conn, err := amqp.Dial(cfg.Queue_path)
 	errhandler.FailOnError(err, "Failed to connect to RabbitMQ")
 
 	// get channel
