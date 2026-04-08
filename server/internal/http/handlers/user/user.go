@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
@@ -16,7 +15,7 @@ import (
 
 var validate = validator.New()
 
-func CreateUser(ch *amqp091.Channel, q amqp091.Queue) http.HandlerFunc {
+func CreateUser(ch *amqp091.Channel, publish chan interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var user types.User
 
@@ -45,7 +44,8 @@ func CreateUser(ch *amqp091.Channel, q amqp091.Queue) http.HandlerFunc {
 		}
 
 		// send to queue
-		err = rabbitmq.SendMessage(ch, q, event)
+		// err = rabbitmq.SendMessage(ch, q, event)
+		publish <- event
 
 		if errhandler.LogOnError(err, "Failed to send event") {
 			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))

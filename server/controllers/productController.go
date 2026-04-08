@@ -20,6 +20,8 @@ func ProductController(storage storage.Storage, cfg *config.Config) {
 	// connect to queue
 	conn, ch := rabbitmq.New(cfg)
 	q := rabbitmq.Connect(ch, "product")
+	publish := rabbitmq.GetPublisher(conn, q)
+
 	defer conn.Close()
 	defer ch.Close()
 
@@ -27,10 +29,10 @@ func ProductController(storage storage.Storage, cfg *config.Config) {
 	router := http.NewServeMux()
 
 	router.Handle("/metrics", promhttp.Handler())
-	router.HandleFunc("POST /api/product", pt.Instrument(handler.CreateProduct(ch, q), "product", "POST /api/product"))
+	router.HandleFunc("POST /api/product", pt.Instrument(handler.CreateProduct(ch, publish), "product", "POST /api/product"))
 	router.HandleFunc("GET /api/product/{id}", pt.Instrument(handler.GetProduct(storage), "product", "GET /api/product/{id}"))
 	router.HandleFunc("GET /api/product", pt.Instrument(handler.GetProducts(storage), "product", "GET /api/product"))
-	router.HandleFunc("POST /api/product/quantity", pt.Instrument(handler.UpdateProductQuantity(ch, q), "product", "POST /api/product/quantity"))
+	router.HandleFunc("POST /api/product/quantity", pt.Instrument(handler.UpdateProductQuantity(ch, publish), "product", "POST /api/product/quantity"))
 
 	// setup server
 	server := &http.Server{

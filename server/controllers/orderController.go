@@ -28,6 +28,7 @@ func OrderController(storage storage.Storage, cfg *config.Config) {
 	defer ch.Close()
 
 	q := rabbitmq.Connect(ch, "order")
+	publish := rabbitmq.GetPublisher(conn, q)
 
 	// setup router
 	router := http.NewServeMux()
@@ -61,7 +62,8 @@ func OrderController(storage storage.Storage, cfg *config.Config) {
 		}
 
 		// send to queue
-		rabbitmq.SendMessage(ch, q, jsonBody)
+		publish <- jsonBody
+		// rabbitmq.SendMessage(ch, q, jsonBody)
 
 		response.WriteJson(w, http.StatusOK, map[string]string{"success": "ok"})
 	})

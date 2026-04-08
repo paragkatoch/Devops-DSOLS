@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
@@ -16,7 +15,7 @@ import (
 
 var validate = validator.New()
 
-func CreateProduct(ch *amqp091.Channel, q amqp091.Queue) http.HandlerFunc {
+func CreateProduct(ch *amqp091.Channel, publish chan interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var product types.Product
 
@@ -45,12 +44,19 @@ func CreateProduct(ch *amqp091.Channel, q amqp091.Queue) http.HandlerFunc {
 		}
 
 		// send to queue
-		err = rabbitmq.SendMessage(ch, q, event)
-
-		if errhandler.LogOnError(err, "Failed to send event") {
-			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+		// err = rabbitmq.SendMessage(ch, q, event)
+		select {
+		case publish <- event:
+		default:
+			slog.Error("queue full, dropping message")
+			response.WriteJson(w, http.StatusTooManyRequests, "queue full, dropping message")
 			return
 		}
+
+		// if errhandler.LogOnError(err, "Failed to send event") {
+		// 	response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+		// 	return
+		// }
 
 		response.WriteJson(w, http.StatusOK, map[string]string{"success": "ok"})
 	}
@@ -89,7 +95,7 @@ func GetProducts(storage storage.Storage) http.HandlerFunc {
 	}
 }
 
-func UpdateProductQuantity(ch *amqp091.Channel, q amqp091.Queue) http.HandlerFunc {
+func UpdateProductQuantity(ch *amqp091.Channel, publish chan interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// request body
 		var req struct {
@@ -120,7 +126,9 @@ func UpdateProductQuantity(ch *amqp091.Channel, q amqp091.Queue) http.HandlerFun
 			Data: jsonBody,
 		}
 		// send to queue
-		err = rabbitmq.SendMessage(ch, q, event)
+		// err = rabbitmq.SendMessage(ch, q, event)
+		publish <- event
+
 		if errhandler.LogOnError(err, "Failed to send event") {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
 			return

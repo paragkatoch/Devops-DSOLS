@@ -48,39 +48,64 @@ func Connect(ch *amqp.Channel, channel string) amqp.Queue {
 		},
 	)
 	errhandler.FailOnError(err, "Failed to declare a queue")
+
 	return q
 }
 
-func SendMessage(ch *amqp.Channel, q amqp.Queue, body interface{}) error {
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+// Create a publisher channel for sending messages to rabbitmq
+func GetPublisher(conn *amqp.Connection, q amqp.Queue) chan interface{} {
+	var publish = make(chan interface{}, 1000)
+	createWorkers(conn, q, publish)
+	return publish
+}
 
-		jsonBody, err := json.Marshal(body)
-		if err != nil {
-			log.Println("failed to publish:", err)
-			return
-		}
+// Create 50 publisher worker go routines for rabbitmq
+func createWorkers(conn *amqp.Connection, q amqp.Queue, jobQueue chan interface{}) {
+	for i := 0; i < 50; i++ {
+		go func() {
+			for {
+				ch, err := conn.Channel()
+				if err != nil {
+					log.Println("failed to create channel:", err)
+					time.Sleep(1 * time.Second)
+					continue
+				}
 
-		err = ch.PublishWithContext(ctx,
-			"",     // exchange
-			q.Name, // routing key
-			false,  // mandatory
-			false,  // immediate
-			amqp.Publishing{
-				ContentType: "application/json",
-				Body:        jsonBody,
-			})
+				for job := range jobQueue {
+					sendMessage(ch, q, job)
+				}
+			}
+		}()
+	}
+}
 
-		if err != nil {
-			log.Println("failed to publish:", err)
-			return
-		}
+func sendMessage(ch *amqp.Channel, q amqp.Queue, body interface{}) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-		// log.Println(" [+] Sent a message")
-	}()
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		log.Println("failed to publish:", err)
+		return
+	}
 
-	return nil
+	err = ch.PublishWithContext(ctx,
+		"",     // exchange
+		q.Name, // routing key
+		false,  // mandatory
+		false,  // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        jsonBody,
+		})
+
+	if err != nil {
+		log.Println("failed to publish:", err)
+		return
+	}
+
+	// log.Println(" [+] Sent a message")
+
 }
 
 func ReceiveMessage(ch *amqp.Channel, q amqp.Queue, handler func([]byte)) {
