@@ -15,6 +15,7 @@ import (
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
 	"github.com/paragkatoch/Devops-DSOLS/util/response"
 	serverhandler "github.com/paragkatoch/Devops-DSOLS/util/serverHandler"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func OrderController(storage storage.Storage, cfg *config.Config) {
@@ -30,6 +31,8 @@ func OrderController(storage storage.Storage, cfg *config.Config) {
 
 	// setup router
 	router := http.NewServeMux()
+
+	router.Handle("/metrics", promhttp.Handler())
 	router.HandleFunc("POST /order", func(w http.ResponseWriter, r *http.Request) {
 		var order types.Order
 

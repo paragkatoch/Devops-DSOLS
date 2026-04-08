@@ -6,6 +6,7 @@ import (
 
 	"github.com/paragkatoch/Devops-DSOLS/controllers"
 	config "github.com/paragkatoch/Devops-DSOLS/internal"
+	"github.com/paragkatoch/Devops-DSOLS/internal/prometheus"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage/postgres"
 	"github.com/paragkatoch/Devops-DSOLS/services"
@@ -38,12 +39,13 @@ func main() {
 	st := postgres.New(cfg)
 
 	if *componentType == "init" {
-		setupdb.Init(st.Db)
+		setupdb.Init(st)
 		return
 	}
 
 	if compType, ok := registry[*componentType]; ok {
 		if fn, ok := compType[*component]; ok {
+			prometheus.Register()
 			fn(st, cfg)
 		} else {
 			slog.Error("Invalid component")

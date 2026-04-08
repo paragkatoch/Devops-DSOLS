@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: "controllers"
+    static_configs:
+      - targets:
+          - user-controller:9000
+          - product-controller:9000
+          - product-service:9000
+          - user-service:9000
+  - job_name: "services"
+    static_configs:
+      - targets:
+          - product-service:9000
+          - user-service:9000
+  - job_name: "rabbitmq"
+    static_configs:
+      - targets: ["rabbitmq:15692"]

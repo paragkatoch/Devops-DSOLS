@@ -7,12 +7,14 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	config "github.com/paragkatoch/Devops-DSOLS/internal"
+	"github.com/paragkatoch/Devops-DSOLS/internal/prometheus"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
 	"github.com/paragkatoch/Devops-DSOLS/util/response"
 	serverhandler "github.com/paragkatoch/Devops-DSOLS/util/serverHandler"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rabbitmq/amqp091-go"
 )
 
@@ -29,10 +31,12 @@ func UserController(storage storage.Storage, cfg *config.Config) {
 
 	// setup router
 	router := http.NewServeMux()
-	router.HandleFunc("POST /api/user", CreateUser(ch, q))
-	router.HandleFunc("GET /api/user/{id}/order", GetUserOrders(storage))
-	router.HandleFunc("GET /api/user/{id}", GetUser(storage))
-	router.HandleFunc("GET /api/user", GetUsers(storage))
+
+	router.Handle("/metrics", promhttp.Handler())
+	router.HandleFunc("POST /api/user", prometheus.Instrument(CreateUser(ch, q), "user", "post_user"))
+	router.HandleFunc("GET /api/user/{id}/order", prometheus.Instrument(GetUserOrders(storage), "user", "get_order"))
+	router.HandleFunc("GET /api/user/{id}", prometheus.Instrument(GetUser(storage), "user", "get_user"))
+	router.HandleFunc("GET /api/user", prometheus.Instrument(GetUsers(storage), "user", "get_users"))
 
 	// setup server
 	server := &http.Server{

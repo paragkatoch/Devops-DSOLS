@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"log"
 	"log/slog"
+	"net/http"
 
 	config "github.com/paragkatoch/Devops-DSOLS/internal"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func OrderService(storage storage.Storage, cfg *config.Config) {
@@ -21,6 +23,11 @@ func OrderService(storage storage.Storage, cfg *config.Config) {
 	defer ch.Close()
 
 	q := rabbitmq.Connect(ch, "order")
+
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(cfg.HTTPServer.Addr, nil)
+	}()
 
 	// receive messages from queue
 	rabbitmq.ReceiveMessage(ch, q, func(b []byte) {

@@ -3,12 +3,14 @@ package services
 import (
 	"encoding/json"
 	"log/slog"
+	"net/http"
 
 	config "github.com/paragkatoch/Devops-DSOLS/internal"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func UserService(storage storage.Storage, cfg *config.Config) {
@@ -21,6 +23,11 @@ func UserService(storage storage.Storage, cfg *config.Config) {
 	defer ch.Close()
 
 	q := rabbitmq.Connect(ch, "user")
+
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(cfg.HTTPServer.Addr, nil)
+	}()
 
 	// receive messages from queue
 	rabbitmq.ReceiveMessage(ch, q, func(b []byte) {
@@ -47,4 +54,5 @@ func UserService(storage storage.Storage, cfg *config.Config) {
 			}
 		}
 	})
+
 }

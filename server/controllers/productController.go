@@ -7,12 +7,14 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	config "github.com/paragkatoch/Devops-DSOLS/internal"
+	pt "github.com/paragkatoch/Devops-DSOLS/internal/prometheus"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
 	"github.com/paragkatoch/Devops-DSOLS/util/response"
 	serverhandler "github.com/paragkatoch/Devops-DSOLS/util/serverHandler"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rabbitmq/amqp091-go"
 )
 
@@ -23,18 +25,18 @@ func ProductController(storage storage.Storage, cfg *config.Config) {
 
 	// connect to queue
 	conn, ch := rabbitmq.New(cfg)
-
+	q := rabbitmq.Connect(ch, "product")
 	defer conn.Close()
 	defer ch.Close()
 
-	q := rabbitmq.Connect(ch, "product")
-
 	// setup router
 	router := http.NewServeMux()
-	router.HandleFunc("POST /api/product", CreateProduct(ch, q))
-	router.HandleFunc("GET /api/product/{id}", GetProduct(storage))
-	router.HandleFunc("GET /api/product", GetProducts(storage))
-	router.HandleFunc("POST /api/product/quantity", UpdateProductQuantity(ch, q))
+
+	router.Handle("/metrics", promhttp.Handler())
+	router.HandleFunc("POST /api/product", pt.Instrument(CreateProduct(ch, q), "product", "POST /api/product"))
+	router.HandleFunc("GET /api/product/{id}", pt.Instrument(GetProduct(storage), "product", "GET /api/product/{id}"))
+	router.HandleFunc("GET /api/product", pt.Instrument(GetProducts(storage), "product", "GET /api/product"))
+	router.HandleFunc("POST /api/product/quantity", pt.Instrument(UpdateProductQuantity(ch, q), "product", "POST /api/product/quantity"))
 
 	// setup server
 	server := &http.Server{
@@ -109,6 +111,7 @@ func GetProduct(storage storage.Storage) http.HandlerFunc {
 
 func GetProducts(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("[+] Product-Controller: Received get products requests")
 		products, err := storage.GetProducts()
 
 		if err != nil {
@@ -117,6 +120,7 @@ func GetProducts(storage storage.Storage) http.HandlerFunc {
 		}
 
 		response.WriteJson(w, http.StatusOK, products)
+		slog.Info("[-] Product-Controller: sent get products response")
 	}
 }
 
