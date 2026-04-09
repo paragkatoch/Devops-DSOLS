@@ -10,12 +10,11 @@ import (
 	"github.com/paragkatoch/Devops-DSOLS/types"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
 	"github.com/paragkatoch/Devops-DSOLS/util/response"
-	"github.com/rabbitmq/amqp091-go"
 )
 
 var validate = validator.New()
 
-func CreateProduct(ch *amqp091.Channel, publish chan interface{}) http.HandlerFunc {
+func CreateProduct(publish chan interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var product types.Product
 
@@ -48,8 +47,11 @@ func CreateProduct(ch *amqp091.Channel, publish chan interface{}) http.HandlerFu
 		select {
 		case publish <- event:
 		default:
-			slog.Error("queue full, dropping message")
-			response.WriteJson(w, http.StatusTooManyRequests, "queue full, dropping message")
+			err := response.WriteJson(w, http.StatusTooManyRequests, response.Response{
+				Status: response.StatusError,
+				Error:  "publisher is busy, try again",
+			})
+			errhandler.LogOnError(err, "Failed to write overload response")
 			return
 		}
 
@@ -95,7 +97,7 @@ func GetProducts(storage storage.Storage) http.HandlerFunc {
 	}
 }
 
-func UpdateProductQuantity(ch *amqp091.Channel, publish chan interface{}) http.HandlerFunc {
+func UpdateProductQuantity(publish chan interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// request body
 		var req struct {
@@ -125,12 +127,15 @@ func UpdateProductQuantity(ch *amqp091.Channel, publish chan interface{}) http.H
 			Type: types.ProductQuantity,
 			Data: jsonBody,
 		}
-		// send to queue
-		// err = rabbitmq.SendMessage(ch, q, event)
-		publish <- event
-
-		if errhandler.LogOnError(err, "Failed to send event") {
-			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
+		// Avoid blocking request goroutines indefinitely when the publisher is saturated.
+		select {
+		case publish <- event:
+		default:
+			err := response.WriteJson(w, http.StatusTooManyRequests, response.Response{
+				Status: response.StatusError,
+				Error:  "publisher is busy, try again",
+			})
+			errhandler.LogOnError(err, "Failed to write overload response")
 			return
 		}
 
