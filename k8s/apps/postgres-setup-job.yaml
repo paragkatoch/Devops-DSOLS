@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-setup
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done;']
+        - name: wait-for-rabbitmq
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
+      containers:
+        - name: postgres-setup
+          image: devops-dsols-app:latest
+          imagePullPolicy: IfNotPresent
+          command: ["./app", "-type=init", "-config=config/local.yml"]
+          volumeMounts:
+            - name: app-config-volume
+              mountPath: /app/config/local.yml
+              subPath: local.yml
+      restartPolicy: OnFailure
+      volumes:
+        - name: app-config-volume
+          configMap:
+            name: app-config
