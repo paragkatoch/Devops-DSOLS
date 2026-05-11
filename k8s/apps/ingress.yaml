@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-gateway-ingress
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api/user
+            pathType: Prefix
+            backend:
+              service:
+                name: user-controller
+                port:
+                  number: 9000
+          - path: /api/product
+            pathType: Prefix
+            backend:
+              service:
+                name: product-controller
+                port:
+                  number: 9000
