@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-controller
+  template:
+    metadata:
+      labels:
+        app: user-controller
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done;']
+        - name: wait-for-rabbitmq
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
+      containers:
+        - name: user-controller
+          image: devops-dsols-app:latest
+          imagePullPolicy: IfNotPresent
+          command: ["./app", "-type=controller", "-component=user", "-config=config/local.yml"]
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - name: app-config-volume
+              mountPath: /app/config/local.yml
+              subPath: local.yml
+      volumes:
+        - name: app-config-volume
+          configMap:
+            name: app-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-controller
+spec:
+  selector:
+    app: user-controller
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done;']
+        - name: wait-for-rabbitmq
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
+      containers:
+        - name: user-service
+          image: devops-dsols-app:latest
+          imagePullPolicy: IfNotPresent
+          command: ["./app", "-type=service", "-component=user", "-config=config/local.yml"]
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - name: app-config-volume
+              mountPath: /app/config/local.yml
+              subPath: local.yml
+      volumes:
+        - name: app-config-volume
+          configMap:
+            name: app-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  selector:
+    app: user-service
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
