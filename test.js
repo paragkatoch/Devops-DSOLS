@@ -1,18 +1,18 @@
 import http from 'k6/http';
 
 // export let options = {
-//     vus: 100,
-//     duration: '10s',
+//     vus: 40,
+//     duration: '60s',
 // };
 
-// export let options = {
-//     stages: [
-//         { duration: '1m', target: 20 },
-//         { duration: '1m', target: 50 },
-//         { duration: '2m', target: 10 },
-//         { duration: '2m', target: 80 },
-//     ],
-// };
+export let options = {
+    stages: [
+        // { duration: '1m', target: 20 },
+        { duration: '1m', target: 40 },
+        { duration: '1m', target: 45 },
+        { duration: '1m', target: 50 },
+    ],
+};
 
 // export let options = {
 //     scenarios: {
@@ -27,18 +27,19 @@ import http from 'k6/http';
 //     },
 // };
 
-export let options = {
-    stages: [
-        // { duration: '1m', target: 20 },
-        // { duration: '1m', target: 50 },
-        { duration: '1m', target: 100 },
-        // { duration: '1m', target: 200 },
+// export let options = {
+//     stages: [
+//         { duration: '1m', target: 25 },
+//         { duration: '1m', target: 50 },
+//         { duration: '1m', target: 75 },
+//         { duration: '1m', target: 100 },
+//         // { duration: '1m', target: 200 },
 
-        { duration: '1m', target: 300 },
-        { duration: '1m', target: 400 },
-        { duration: '1m', target: 500 },
-    ],
-};
+//         { duration: '1m', target: 300 },
+//         { duration: '1m', target: 400 },
+//         { duration: '1m', target: 500 },
+//     ],
+// };
 
 // export let options = {
 //     scenarios: {
@@ -62,6 +63,8 @@ function getRandomSwitch(rg) {
     return Math.floor(Math.random() * rg);
 }
 
+let address = "127.0.0.1"
+
 export default function () {
     if (getRandomSwitch(2) < 2) {
         const payload = JSON.stringify({
@@ -76,12 +79,12 @@ export default function () {
         };
 
         http.post(
-            "http://localhost:9000/api/product/quantity",
+            "http://127.0.0.1/api/product/quantity",
             payload,
             params
         );
     } else {
-        http.get('http://localhost:9000/api/product');
+        http.get('http://127.0.0.1/api/product');
     }
 
 }

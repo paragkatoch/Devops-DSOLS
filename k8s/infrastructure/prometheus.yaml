@@ -14,6 +14,7 @@ kind: Deployment
 metadata:
   name: prometheus
 spec:
+  revisionHistoryLimit: 2
   replicas: 1
   selector:
     matchLabels:
@@ -30,6 +31,8 @@ spec:
             - "--web.enable-remote-write-receiver"
             - "--config.file=/etc/prometheus/prometheus.yml"
             - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=2h"
+            - "--storage.tsdb.retention.size=200MB"
           ports:
             - containerPort: 9090
           volumeMounts:
@@ -38,6 +41,14 @@ spec:
               subPath: prometheus.yml
             - name: prometheus-data
               mountPath: /prometheus
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "512m"
+              memory: "512Mi"
+
       volumes:
         - name: prometheus-config-volume
           configMap:

@@ -1,570 +1,434 @@
-# DSOLS - Distributed Systems Observability & Load Simulation
+# Devops-DSOLS
 
-A **microservices-based order management and load simulation system** built with Go, featuring event-driven architecture, distributed components, and containerized deployment using Docker and Nginx.
-
-## 🎯 Project Overview
-
-DSOLS is a modern, scalable backend system for managing users, products, and orders in a distributed environment. It follows microservices principles with independent services communicating through message queues, API gateways, and databases.
-
-### Key Features
-
-- 🏗️ **Microservices Architecture** - Decoupled, independent services
-- 📨 **Event-Driven** - Asynchronous processing with RabbitMQ
-- 🔄 **Service Communication** - REST APIs + Message Queue integration
-- 🐳 **Docker Containerized** - Full Docker & Docker Compose setup
-- 📦 **PostgreSQL Database** - Persistent data storage
-- 🚀 **Nginx API Gateway** - Single entry point for all client requests
-
-## 📋 Table of Contents
-
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [Technology Stack](#technology-stack)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Services](#services)
-- [API Documentation](#api-documentation)
-- [Configuration](#configuration)
-- [Deployment](#deployment)
-- [Development](#development)
-- [Troubleshooting](#troubleshooting)
-
-## 🏛️ Architecture
-
-### System Overview
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Clients/Browser                      │
-└────────────────────────┬────────────────────────────────────┘
-						 │ (Port 9000)
-						 ▼
-┌────────────────────────────────────────────────────────────┐
-│                    API Gateway (Nginx)                     │
-│  Routes:                                                   │
-│  /api/user      → user-controller:9000                   │
-│  /api/product   → product-controller:9000               │
-└──────┬──────────────────────────────────┬──────────────────┘
-	   │                                  │
-	   ▼                                  ▼
-┌──────────────────┐            ┌──────────────────────┐
-│ User Controller  │            │ Product Controller   │
-│  (HTTP Server)   │            │   (HTTP Server)      │
-└─────────┬────────┘            └──────────┬───────────┘
-		  │                                │
-		  └───────────────┬────────────────┘
-						  │
-			┌─────────────┴──────────────┐
-			│                            │
-			▼                            ▼
-	┌────────────────┐         ┌──────────────────┐
-	│  PostgreSQL    │         │   RabbitMQ       │
-	│   Database     │         │  Message Queue   │
-	└────────────────┘         └──────────────────┘
-			▲                            ▲
-			└────────────────┬───────────┘
-							 │
-					┌────────┴────────┐
-					│                 │
-					▼                 ▼
-			┌──────────────┐  ┌──────────────┐
-			│ User Service │  │ Product Svc  │
-			│  (Consumers) │  │  (Consumers) │
-			└──────────────┘  └──────────────┘
-```
-
-### Data Flow
-
-1. **Client Request** → API Gateway (Nginx)
-2. **Gateway Routes** → Appropriate Controller
-3. **GET requests** → Read directly from PostgreSQL
-4. **POST/PUT requests** → Queue event to RabbitMQ
-5. **Services Consume** → Process events and persist to database
-
-## 📁 Project Structure
-
-```
-.
-├── README.md                          # Main project documentation
-├── API_GATEWAY_README.md              # Detailed API Gateway docs
-├── docker-compose.yml                 # Docker Compose configuration
-│
-├── infra/
-│   ├── Dockerfile                     # Container build configuration
-│   └── nginx.conf                     # Nginx routing configuration
-│
-└── server/
-	├── main.go                        # Application entry point
-	├── go.mod                         # Go module dependencies
-	│
-	├── config/
-	│   └── local.yml                  # Local environment configuration
-	│
-	├── cmd/                           # Command-line utilities
-	│
-	├── controllers/
-	│   ├── userController.go          # User service HTTP handler
-	│   ├── productController.go       # Product service HTTP handler
-	│   └── orderController.go         # Order service HTTP handler
-	│
-	├── services/
-	│   ├── userService.go             # User business logic
-	│   ├── productService.go          # Product business logic
-	│   └── orderService.go            # Order business logic
-	│
-	├── internal/
-	│   ├── config.go                  # Configuration loader
-	│   ├── rabbitmq/
-	│   │   └── rabbitmq.go            # RabbitMQ integration
-	│   └── storage/
-	│       ├── storage.go             # Storage interface
-	│       └── postgres/
-	│           ├── postgres.go        # PostgreSQL driver
-	│           ├── product.go         # Product queries
-	│           └── user.go            # User queries
-	│
-	├── types/
-	│   └── types.go                   # Data structures & types
-	│
-	└── util/
-		├── DB/
-		│   └── setupDB.go             # Database initialization
-		├── errHandler/
-		│   └── errHandler.go          # Error handling utilities
-		├── response/
-		│   └── response.go            # JSON response formatting
-		└── serverHandler/
-			└── serverHandler.go       # HTTP server utilities
-```
-
-## 🛠️ Technology Stack
-
-| Component            | Technology              | Purpose                          |
-| -------------------- | ----------------------- | -------------------------------- |
-| **Language**         | Go 1.21+                | Backend services                 |
-| **API Gateway**      | Nginx                   | Request routing & load balancing |
-| **Message Queue**    | RabbitMQ                | Asynchronous event processing    |
-| **Database**         | PostgreSQL 15           | Data persistence                 |
-| **Containerization** | Docker & Docker Compose | Deployment & orchestration       |
-| **Framework**        | Go std lib (net/http)   | HTTP routing                     |
-| **Validation**       | go-playground/validator | Data validation                  |
-
-## 📦 Prerequisites
-
-### System Requirements
-
-- **Docker** (version 20.10+)
-- **Docker Compose** (version 1.29+)
-- **Go** (version 1.21+) - for local development
-- **Git** - for version control
-
-### Ports Required
-
-- **9000** - API Gateway (Nginx)
-- **5432** - PostgreSQL
-- **5672** - RabbitMQ (AMQP)
-- **15672** - RabbitMQ Management UI
-
-## 🚀 Quick Start
-
-### Using Docker Compose (Recommended)
-
-1. **Clone the repository**
-
-   ```bash
-   git clone <repository-url>
-   cd Devops-DSOLS
-   ```
-
-2. **Build and start all services**
-
-   ```bash
-   docker-compose up -d
-   ```
-
-3. **Verify all services are running**
-
-   ```bash
-   docker-compose ps
-   ```
-
-   Expected output:
-
-   ```
-   NAME                    STATUS
-   postgres                Up
-   rabbitmq                Up (healthy)
-   postgres-setup          Exited (0)
-   user-controller         Up
-   product-controller      Up
-   api-gateway             Up
-   ```
-
-4. **Test the API**
-
-   ```bash
-   # Create a user
-   curl -X POST http://localhost:9000/api/user \
-    -H "Content-Type: application/json" \
-    -d '{"id":"USER1","email":"test@example.com"}'
-
-   # Get all users
-   curl http://localhost:9000/api/user
-   ```
-
-5. **Access Services**
-   - **API Gateway**: http://localhost:9000
-   - **RabbitMQ UI**: http://localhost:15672 (guest:guest)
-   - **PostgreSQL**: localhost:5432
-
-### Local Development
-
-1. **Install dependencies**
-
-   ```bash
-   cd server
-   go mod download
-   ```
-
-2. **Build the application**
-
-   ```bash
-   go build -o app main.go
-   ```
-
-3. **Initialize database** (requires running postgres-setup)
-
-   ```bash
-   docker-compose up postgres postgres-setup
-   ```
-
-4. **Run a specific component**
-
-   ```bash
-   # Run user controller
-   ./app -type=controller -component=user -config=config/local.yml
-
-   # Run user service
-   ./app -type=service -component=user -config=config/local.yml
-
-   # Initialize database
-   ./app -type=init -config=config/local.yml
-   ```
-
-## 🔧 Services
-
-### User Controller
-
-**Port:** 9000  
-**Endpoints:** `/api/user`  
-**Responsibilities:**
-
-- Accept user creation requests
-- Retrieve user information
-- Query user orders
-
-### Product Controller
-
-**Port:** 9000  
-**Endpoints:** `/api/product`  
-**Responsibilities:**
-
-- Accept product creation requests
-- Manage product catalog
-- Update product quantities
-
-### User Service (Consumer)
-
-**Queue:** `user`  
-**Events:**
-
-- `user.create` - Process new user events
-
-### Product Service (Consumer)
-
-**Queue:** `product`  
-**Events:**
-
-- `product.create` - Process new product events
-- `product.quantity` - Update product quantities
-
-### Order Controller
-
-**Port:** 9000  
-**Endpoints:** `/order`  
-**Responsibilities:**
-
-- Accept order creation requests
-- Assign order IDs and timestamps
-
-## 📡 API Documentation
-
-For comprehensive API documentation including all endpoints, request/response examples, and sample data, see **[API_GATEWAY_README.md](API_GATEWAY_README.md)**.
-
-### Postman Collection
-
-Import and test all API endpoints using our Postman Workspace:
-
-🔗 **[DSOLS Postman Workspace](https://www.postman.com/preidiot-ream/workspace/spe-major)**
-
-The workspace includes:
-
-- Pre-configured requests for all endpoints
-- Environment variables for different deployments
-- Example request/response pairs
-- API testing scripts
-
-### Quick API Reference
-
-| Method | Endpoint                | Description             |
-| ------ | ----------------------- | ----------------------- |
-| POST   | `/api/user`             | Create a new user       |
-| GET    | `/api/user`             | List all users          |
-| GET    | `/api/user/{id}`        | Get user by ID          |
-| GET    | `/api/user/{id}/order`  | Get user's orders       |
-| POST   | `/api/product`          | Create a new product    |
-| GET    | `/api/product`          | List all products       |
-| GET    | `/api/product/{id}`     | Get product by ID       |
-| POST   | `/api/product/quantity` | Update product quantity |
-| POST   | `/order`                | Create an order         |
-
-## ⚙️ Configuration
-
-### Environment Variables
-
-All services use `server/config/local.yml` for configuration:
-
-```yaml
-env: "local"
-storage_path: "postgres://admin:admin@postgres:5432/retail?sslmode=disable"
-queue_path: "amqp://guest:guest@rabbitmq:5672/"
-http_server:
-  address: ":9000"
-```
-
-### Database Schema
-
-Database schema is automatically initialized by the `postgres-setup` service on first run. This includes:
-
-- `users` table
-- `products` table
-- `orders` table
-- `order_items` table
-
-## 🐳 Deployment
-
-### Docker Compose Services
-
-**PostgreSQL** (postgres)
-
-- Image: `postgres:15`
-- Port: 5432
-- Credentials: admin/admin
-- Database: retail
-
-**RabbitMQ** (rabbitmq)
-
-- Image: `rabbitmq:management`
-- AMQP Port: 5672
-- Management UI: 15672
-- Credentials: guest/guest
-
-**Postgres Setup** (postgres-setup)
-
-- Runs initialization on startup
-- Depends on: postgres, rabbitmq
-
-**User Controller** (user-controller)
-
-- Listens on port 9000
-- Dependencies: postgres, rabbitmq
-
-**Product Controller** (product-controller)
-
-- Listens on port 9000
-- Dependencies: postgres, rabbitmq
-
-**API Gateway** (api-gateway)
-
-- Routes requests to controllers
-- Port: 9000 (external)
-- Dependencies: all controllers
-
-### Production Considerations
-
-For production deployments:
-
-1. Use environment-specific `.yml` files for different configs
-2. Enable TLS/SSL certificates for secure communication
-3. Set up proper database backups and replication
-4. Implement logging and monitoring (ELK, Prometheus)
-5. Use container orchestration (Kubernetes) for scaling
-6. Implement rate limiting and authentication
-7. Set up health checks and auto-restart policies
-
-See [API_GATEWAY_README.md](API_GATEWAY_README.md) for advanced gateway configuration.
-
-## 🛠️ Development
-
-### Running Tests
-
-```bash
-cd server
-go test ./...
-```
-
-### Building Docker Image
-
-```bash
-docker build -t devops-dsols:latest -f infra/Dockerfile .
-```
-
-### Viewing Logs
-
-```bash
-# View all services
-docker-compose logs -f
-
-# View specific service
-docker-compose logs -f user-controller
-
-# View API Gateway
-docker-compose logs -f api-gateway
-```
-
-### Connecting to PostgreSQL
-
-```bash
-# Using docker exec
-docker exec -it postgres psql -U admin -d retail
-
-# Or using local psql (if installed)
-psql -h localhost -p 5432 -U admin -d retail
-```
-
-### Accessing RabbitMQ
-
-```bash
-# Management UI
-open http://localhost:15672
-# Credentials: guest / guest
-
-# Check queues
-docker exec -it rabbitmq rabbitmqctl list_queues
-```
-
-## 🐛 Troubleshooting
-
-### Services Won't Start
-
-```bash
-# Check logs
-docker-compose logs
-
-# Verify all ports are available
-lsof -i :9000
-lsof -i :5432
-lsof -i :5672
-
-# Rebuild images
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
-```
-
-### Database Connection Error
-
-```bash
-# Verify postgres is running and healthy
-docker-compose ps postgres
-
-# Check if postgres-setup completed successfully
-docker-compose logs postgres-setup
-
-# Verify database exists
-docker exec -it postgres psql -U admin -l
-```
-
-### RabbitMQ Issues
-
-```bash
-# Check RabbitMQ health
-docker-compose exec rabbitmq rabbitmq-diagnostics ping
-
-# View queue status
-docker-compose exec rabbitmq rabbitmqctl list_queues
-
-# Reset (⚠️ clears queues)
-docker-compose exec rabbitmq rabbitmqctl reset
-```
-
-### API Gateway Not Routing Requests
-
-```bash
-# Verify nginx configuration
-docker exec api-gateway nginx -t
-
-# Check controller connectivity from gateway
-docker exec api-gateway curl http://user-controller:9000/api/user
-
-# View gateway logs
-docker logs -f api-gateway
-```
-
-### Port Already in Use
-
-```bash
-# Find process using port
-lsof -i :9000
-
-# Kill process (use with caution)
-kill -9 <PID>
-
-# Or use different port in docker-compose.yml
-# Change "9000:80" to "9001:80"
-```
-
-## 📚 Additional Documentation
-
-- **[API Gateway Documentation](API_GATEWAY_README.md)** - Detailed API routes, examples, and configuration
-- **Go Module**: github.com/paragkatoch/Devops-DSOLS
-- **Docker Compose**: See `docker-compose.yml` for all service configurations
-
-## 🔐 Security Notes
-
-⚠️ **Development Only** - Current setup uses:
-
-- Default credentials (admin/admin for PostgreSQL, guest/guest for RabbitMQ)
-- No HTTPS/TLS
-- No authentication/authorization
-
-For production, implement:
-
-- Strong, unique credentials
-- TLS certificates
-- API authentication (JWT, OAuth2)
-- Rate limiting
-- Input validation and sanitization
-- CORS policies
-
-## 📝 License
-
-This project is part of the DevOps & Distributed Systems learning initiative.
-
-## 👤 Author
-
-Parag Katoch
-
-## 🙋 Support & Contribution
-
-For issues, questions, or contributions:
-
-1. Check existing issues and documentation
-2. Review logs: `docker-compose logs`
-3. Verify all services are healthy: `docker-compose ps`
-4. Test individual services with curl commands
+A Go microservices system deployed on Kubernetes (Minikube) with full observability via Prometheus & Grafana and load testing via k6.
 
 ---
 
-**Last Updated**: April 2026  
-**Status**: Active Development
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [Project Structure](#project-structure)
+- [Prerequisites](#prerequisites)
+- [Step-by-Step Run Guide](#step-by-step-run-guide)
+  - [1. Start Minikube](#1-start-minikube)
+  - [2. Enable Metrics Addon](#2-enable-metrics-addon)
+  - [3. Start Kubernetes Dashboard](#3-start-kubernetes-dashboard)
+  - [4. Deploy Everything (script.sh)](#4-deploy-everything-scriptsh)
+  - [5. Open Required Terminals](#5-open-required-terminals)
+  - [6. Configure Grafana](#6-configure-grafana)
+  - [7. Import Grafana Dashboard](#7-import-grafana-dashboard)
+  - [8. Verify Deployments](#8-verify-deployments)
+  - [9. Run k6 Load Test](#9-run-k6-load-test)
+- [Services & Ports](#services--ports)
+- [Kubernetes Resources](#kubernetes-resources)
+- [CI/CD Pipeline (Jenkins)](#cicd-pipeline-jenkins)
+- [Docker Compose (Local Dev Alternative)](#docker-compose-local-dev-alternative)
+
+---
+
+## Architecture Overview
+
+```
+                          ┌─────────────────────────────────────────────────┐
+                          │              Minikube Cluster                   │
+                          │           Namespace: devops-dsols               │
+                          │                                                 │
+  k6 Load Test ──────────▶│  Ingress (nginx)                               │
+  (127.0.0.1)             │    /api/user    ──▶ user-controller :9000      │
+                          │    /api/product ──▶ product-controller :9000   │
+                          │                                                 │
+                          │  user-controller ──[RabbitMQ]──▶ user-service  │
+                          │  product-controller ──[RabbitMQ]──▶ product-service│
+                          │                          │                      │
+                          │                       postgres                  │
+                          │                                                 │
+                          │  prometheus :9090  ◀── scrapes all services    │
+                          │  grafana    :3000  ◀── reads prometheus        │
+                          └─────────────────────────────────────────────────┘
+```
+
+**Component Roles:**
+
+| Component | Type | Role |
+|---|---|---|
+| `user-controller` | Go app | HTTP handler for `/api/user` routes |
+| `user-service` | Go app | Business logic consumer for user events |
+| `product-controller` | Go app | HTTP handler for `/api/product` routes |
+| `product-service` | Go app | Business logic consumer for product events |
+| `postgres` | PostgreSQL 15 | Primary datastore (`retail` DB) |
+| `rabbitmq` | RabbitMQ + management | Async message queue between controllers and services |
+| `prometheus` | Prometheus | Metrics scraping & remote-write receiver |
+| `grafana` | Grafana | Metrics visualization |
+| `nginx ingress` | Kubernetes Ingress | API gateway routing to services |
+
+---
+
+## Project Structure
+
+```
+Devops-DSOLS/
+├── infra/
+│   ├── Dockerfile          # Multi-stage Go builder → debian:slim runner
+│   ├── nginx.conf          # Nginx config (Docker Compose only)
+│   └── prometheus.yml      # Prometheus scrape config (Docker Compose only)
+├── k8s/
+│   ├── namespace.yaml      # Creates 'devops-dsols' namespace
+│   ├── configmaps.yaml     # app-config + prometheus-config ConfigMaps
+│   ├── infrastructure/
+│   │   ├── postgres.yaml   # Postgres Deployment + PVC + Service
+│   │   ├── rabbitmq.yaml   # RabbitMQ Deployment + Service (AMQP/UI/metrics)
+│   │   ├── prometheus.yaml # Prometheus Deployment + PVC + Service
+│   │   └── grafana.yaml    # Grafana Deployment + PVC + NodePort Service
+│   └── apps/
+│       ├── user.yaml            # user-controller + user-service Deployments & Services
+│       ├── product.yaml         # product-controller + product-service Deployments & Services
+│       ├── ingress.yaml         # Nginx Ingress routing /api/user and /api/product
+│       └── postgres-setup-job.yaml  # One-time DB init Job
+├── server/                 # Go source code
+│   ├── main.go
+│   ├── cmd/
+│   ├── config/
+│   ├── controllers/
+│   ├── services/
+│   ├── internal/
+│   ├── types/
+│   └── util/
+├── script.sh               # One-shot build + deploy script
+├── test.js                 # k6 load test script
+├── grafanaDashboard.json   # Pre-built Grafana dashboard
+├── docker-compose.yml      # Local dev alternative (no Kubernetes)
+└── Jenkinsfile             # Jenkins CI/CD pipeline definition
+```
+
+---
+
+## Prerequisites
+
+Make sure the following are installed before starting:
+
+| Tool | Purpose | Install |
+|---|---|---|
+| `minikube` | Local Kubernetes cluster | `brew install minikube` |
+| `kubectl` | Kubernetes CLI | `brew install kubectl` |
+| `docker` | Build app image | [docker.com](https://docker.com) |
+| `k6` | Load testing | `brew install k6` |
+
+---
+
+## Step-by-Step Run Guide
+
+### 1. Start Minikube
+
+First, configure Minikube to use enough CPU and memory resources, then start fresh:
+
+```bash
+# Set resource limits (applied on next start)
+# This step is one time only , if already project is setuped skip it
+minikube config set cpus 4
+minikube config set memory 4096
+
+# Delete any existing cluster to apply the new config cleanly
+# This step is one time only , if already project is setuped skip it
+minikube delete
+
+# Start Minikube with the Docker driver
+minikube start --driver=docker
+```
+
+> **Why delete first?** `minikube config set` only takes effect when a new cluster is created. Deleting the old cluster ensures the CPU/memory settings are applied correctly.
+
+Verify it's running:
+
+```bash
+minikube status
+```
+
+---
+
+### 2. Enable Metrics Addon
+
+Enable the Kubernetes metrics server so the dashboard shows CPU/memory:
+
+```bash
+minikube addons enable metrics-server
+```
+
+---
+
+### 3. Start Kubernetes Dashboard
+
+Open the Minikube dashboard in your browser to monitor pods and deployments:
+
+```bash
+minikube dashboard
+```
+
+> This will open a browser tab automatically. Keep this terminal running.
+
+---
+
+### 4. Deploy Everything (script.sh)
+
+Make the deployment script executable, then run it:
+
+```bash
+chmod +x ./script.sh
+./script.sh
+```
+
+**What `script.sh` does, step by step:**
+
+1. Verifies Minikube is running (starts it if not)
+2. Enables the `ingress` addon
+3. Builds the Go app Docker image: `devops-dsols-app:latest`
+4. Loads the image directly into Minikube's internal Docker daemon
+5. Applies the `devops-dsols` namespace
+6. Applies ConfigMaps (`app-config` + `prometheus-config`)
+7. Applies all infrastructure: Postgres, RabbitMQ, Prometheus, Grafana
+8. Applies all app deployments: user-controller, user-service, product-controller, product-service, Ingress, postgres-setup Job
+9. Rolls out a restart to ensure latest image is active
+10. Prints all pod statuses
+
+**Verify pods are running:**
+
+```bash
+kubectl get pods -n devops-dsols
+```
+
+Wait until all pods show `Running` or `Completed` (the postgres-setup Job will be `Completed`).
+
+---
+
+### 5. Open Required Terminals
+
+Open **3 separate terminal tabs/windows** and run one command in each:
+
+#### Terminal 1 — Minikube Tunnel (required for Ingress/LoadBalancer)
+
+```bash
+sudo minikube tunnel
+```
+
+> This exposes Kubernetes services to `127.0.0.1`. Keep this running. It may prompt for your sudo password.
+
+#### Terminal 2 — Expose Prometheus
+
+```bash
+minikube service prometheus -n devops-dsols
+```
+
+> Minikube will print and open a local URL like `http://127.0.0.1:<PORT>`.  
+> **Note the port** — you will need it to run k6 with remote-write.
+
+#### Terminal 3 — Expose Grafana
+
+```bash
+minikube service grafana -n devops-dsols
+```
+
+> Minikube will print and open the Grafana URL (e.g. `http://127.0.0.1:<PORT>`).  
+> This is the URL you'll use to access the Grafana UI.
+
+---
+
+### 6. Configure Grafana
+
+1. Open the Grafana URL from **Terminal 3** in your browser.
+2. **Login** with:
+   - Username: `admin`
+   - Password: `admin`
+3. When prompted to change the password, click **Skip**.
+
+#### Add Prometheus as a Data Source
+
+4. In the left sidebar, go to **Connections → Add new connection**.
+5. Search for and select **Prometheus**.
+6. Click **Add new data source**.
+7. Set the **Connection URL** to:
+   ```
+   http://prometheus:9090
+   ```
+8. Scroll down and click **Save & Test**.
+   - You should see a green ✅ `Successfully queried the Prometheus API.`
+
+---
+
+### 7. Import Grafana Dashboard
+
+1. In the left sidebar, go to **Dashboards**.
+2. Click **New → Import**.
+3. Open `grafanaDashboard.json` from this repo and copy its entire contents.
+4. Paste the JSON into the **Import via dashboard JSON model** text box.
+5. Click **Load**.
+6. Under **Prometheus**, select the Prometheus data source you just added.
+7. Click **Import**.
+
+The dashboard will load and start showing metrics as soon as traffic hits the services.
+
+---
+
+### 8. Verify Deployments
+
+In the Kubernetes dashboard (from Step 3), verify there are **8 deployments** in the `devops-dsols` namespace:
+
+| # | Deployment |
+|---|---|
+| 1 | `user-controller` |
+| 2 | `user-service` |
+| 3 | `product-controller` |
+| 4 | `product-service` |
+| 5 | `postgres` |
+| 6 | `rabbitmq` |
+| 7 | `prometheus` |
+| 8 | `grafana` |
+
+> The `postgres-setup` is a **Job**, not a Deployment — it will show as `Completed`.
+
+---
+
+### 9. Run k6 Load Test
+
+Use the port shown in **Terminal 2** (the Prometheus service URL) for the remote-write endpoint.
+
+```bash
+K6_PROMETHEUS_RW_SERVER_URL=http://127.0.0.1:<PROMETHEUS_PORT>/api/v1/write \
+k6 run --out experimental-prometheus-rw test.js
+```
+
+**Example** (replace `63964` with your actual port from Terminal 2):
+
+```bash
+K6_PROMETHEUS_RW_SERVER_URL=http://127.0.0.1:63964/api/v1/write \
+k6 run --out experimental-prometheus-rw test.js
+```
+
+**What `test.js` does:**
+
+The k6 script sends load in 3 stages against `http://127.0.0.1` (via the Minikube tunnel + Ingress):
+
+| Stage | Duration | Target VUs |
+|---|---|---|
+| Stage 1 | 1 minute | 40 |
+| Stage 2 | 1 minute | 45 |
+| Stage 3 | 1 minute | 50 |
+
+It randomly sends:
+- **POST** `http://127.0.0.1/api/product/quantity` — updates product stock
+- **GET** `http://127.0.0.1/api/product` — fetches all products
+
+After the test runs, **check the Grafana dashboard** for live metrics (request rate, latency, VU count, etc.).
+
+---
+
+## Services & Ports
+
+| Service | Internal Port | Access Method |
+|---|---|---|
+| Ingress / API Gateway | `80` | `http://127.0.0.1` (via `minikube tunnel`) |
+| Prometheus | `9090` | `minikube service prometheus -n devops-dsols` |
+| Grafana | `3000` / NodePort `30000` | `minikube service grafana -n devops-dsols` |
+| Postgres | `5432` | Internal only |
+| RabbitMQ AMQP | `5672` | Internal only |
+| RabbitMQ UI | `15672` | Internal only |
+| RabbitMQ Metrics | `15692` | Scraped by Prometheus |
+| App services/controllers | `9000` | Scraped by Prometheus |
+
+---
+
+## Kubernetes Resources
+
+### Namespace
+
+All resources live in the `devops-dsols` namespace:
+
+```bash
+kubectl get all -n devops-dsols
+```
+
+### ConfigMaps
+
+| ConfigMap | Purpose |
+|---|---|
+| `app-config` | App config: DB URL, RabbitMQ URL, HTTP listen address |
+| `prometheus-config` | Prometheus scrape targets |
+
+### Persistent Volume Claims
+
+| PVC | Size | Used By |
+|---|---|---|
+| `postgres-pvc` | 1Gi | Postgres data |
+| `prometheus-pvc` | 1Gi | Prometheus TSDB (2h retention, 200MB cap) |
+| `grafana-pvc` | 1Gi | Grafana dashboards & settings |
+
+### Resource Limits Summary
+
+| Workload | CPU Request | CPU Limit | Memory Request | Memory Limit |
+|---|---|---|---|---|
+| `user/product-controller/service` | 10m | 50m | 128Mi | 256Mi |
+| `postgres` | 200m | 500m | 256Mi | 512Mi |
+| `rabbitmq` | 250m | 500m | 512Mi | 1024Mi |
+| `prometheus` | 100m | 512m | 256Mi | 512Mi |
+| `grafana` | 100m | 500m | 256Mi | 1Gi |
+
+---
+
+## CI/CD Pipeline (Jenkins)
+
+The `Jenkinsfile` defines a declarative pipeline that mirrors `script.sh` for automated CI/CD:
+
+| Stage | Action |
+|---|---|
+| Verify Environment | `minikube status \|\| minikube start` + enable ingress addon |
+| Build Docker Image | `docker build -t devops-dsols-app:latest -f infra/Dockerfile .` |
+| Load Image to Minikube | `minikube image load devops-dsols-app:latest` |
+| Deploy Configs & Infrastructure | Apply namespace, ConfigMaps, and infrastructure YAMLs |
+| Deploy Applications | Apply app YAMLs + `kubectl rollout restart` |
+
+**Requirements for Jenkins:**
+- Jenkins agent must have `minikube`, `kubectl`, and `docker` in PATH.
+- PATH is configured in the `environment` block: `/opt/homebrew/bin:/usr/local/bin`.
+
+---
+
+## Docker Compose (Local Dev Alternative)
+
+If you want to run without Kubernetes, use Docker Compose for a quick local setup:
+
+```bash
+docker compose up --build
+```
+
+| Service | Port |
+|---|---|
+| API Gateway (nginx) | `9000` |
+| Prometheus | `9090` |
+| Grafana | `3000` |
+| RabbitMQ UI | `15672` |
+| Postgres | `5432` |
+
+> **Note:** The Kubernetes setup (`script.sh`) is the primary workflow. Docker Compose is provided for local development convenience only.
+
+---
+
+## Troubleshooting
+
+**Pods stuck in `Pending` or `Init`:**
+```bash
+kubectl describe pod <pod-name> -n devops-dsols
+kubectl logs <pod-name> -n devops-dsols
+```
+
+**Ingress not routing (404 on `127.0.0.1`):**
+- Ensure `sudo minikube tunnel` is running in Terminal 1.
+- Check ingress addon: `minikube addons enable ingress`
+
+**Prometheus data source test fails in Grafana:**
+- Make sure you used `http://prometheus:9090` (the Kubernetes service DNS name), not `localhost`.
+
+**k6 remote write fails:**
+- Double-check the port from Terminal 2 output.
+- Ensure `--web.enable-remote-write-receiver` is set on Prometheus (it is, via `prometheus.yaml` args).
+
+**Image not found in Minikube:**
+- Re-run: `minikube image load devops-dsols-app:latest`
+- Or rebuild: `docker build -t devops-dsols-app:latest -f infra/Dockerfile .`

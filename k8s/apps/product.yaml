@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: product-controller
 spec:
+  revisionHistoryLimit: 2
   replicas: 1
   selector:
     matchLabels:
@@ -30,6 +31,13 @@ spec:
             - name: app-config-volume
               mountPath: /app/config/local.yml
               subPath: local.yml
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "128Mi"
+            limits:
+              cpu: "50m"
+              memory: "256Mi"
       volumes:
         - name: app-config-volume
           configMap:
@@ -52,6 +60,7 @@ kind: Deployment
 metadata:
   name: product-service
 spec:
+  revisionHistoryLimit: 2
   replicas: 1
   selector:
     matchLabels:
@@ -79,6 +88,13 @@ spec:
             - name: app-config-volume
               mountPath: /app/config/local.yml
               subPath: local.yml
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "128Mi"
+            limits:
+              cpu: "50m"
+              memory: "256Mi"
       volumes:
         - name: app-config-volume
           configMap:
