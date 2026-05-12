@@ -32,15 +32,16 @@ pipeline {
         stage('Deploy Configs & Infrastructure') {
             steps {
                 echo "Applying ConfigMaps, Postgres, RabbitMQ, Prometheus, and Grafana..."
-                sh 'kubectl apply -f k8s/configmaps.yaml'
-                sh 'kubectl apply -f k8s/infrastructure/'
+                sh 'kubectl apply -f k8s/namespace.yaml'
+                sh 'kubectl apply -n devops-dsols -f k8s/configmaps.yaml'
+                sh 'kubectl apply -n devops-dsols -f k8s/infrastructure/'
             }
         }
 
         stage('Deploy Applications') {
             steps {
                 echo "Deploying Go applications and Ingress..."
-                sh 'kubectl apply -f k8s/apps/'
+                sh 'kubectl apply -n devops-dsols -f k8s/apps/'
             }
         }
     }
@@ -48,7 +49,7 @@ pipeline {
     post {
         success {
             echo "Deployment successful!"
-            sh 'kubectl get pods'
+            sh 'kubectl get pods -n devops-dsols'
         }
         failure {
             echo "Deployment failed! Please check the logs."
