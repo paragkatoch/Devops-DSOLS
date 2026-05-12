@@ -42,6 +42,8 @@ pipeline {
             steps {
                 echo "Deploying Go applications and Ingress..."
                 sh 'kubectl apply -n devops-dsols -f k8s/apps/'
+                echo "Restarting deployments to ensure latest code changes are applied..."
+                sh 'kubectl rollout restart deployment -n devops-dsols'
             }
         }
     }
