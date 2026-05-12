@@ -18,7 +18,7 @@ data:
   prometheus.yml: |
     global:
       scrape_interval: 5s
-    
+
     scrape_configs:
       - job_name: "controllers"
         static_configs:
@@ -33,3 +33,6 @@ data:
       - job_name: "rabbitmq"
         static_configs:
           - targets: ["rabbitmq:15692"]
+      - job_name: 'kube-state-metrics'
+        static_configs:
+          - targets: ['kube-state-metrics.devops-dsols.svc.cluster.local:8080']

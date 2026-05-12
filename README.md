@@ -110,12 +110,13 @@ Devops-DSOLS/
 
 Make sure the following are installed before starting:
 
-| Tool       | Purpose                  | Install                          |
-| ---------- | ------------------------ | -------------------------------- |
-| `minikube` | Local Kubernetes cluster | `brew install minikube`          |
-| `kubectl`  | Kubernetes CLI           | `brew install kubectl`           |
-| `docker`   | Build app image          | [docker.com](https://docker.com) |
-| `k6`       | Load testing             | `brew install k6`                |
+| Tool       | Purpose                      | Install                          |
+| ---------- | ---------------------------- | -------------------------------- |
+| `minikube` | Local Kubernetes cluster     | `brew install minikube`          |
+| `kubectl`  | Kubernetes CLI               | `brew install kubectl`           |
+| `docker`   | Build app image              | [docker.com](https://docker.com) |
+| `k6`       | Load testing                 | `brew install k6`                |
+| `helm`     | k8 and prometheus connection | `brew install helm`              |
 
 ---
 
@@ -123,11 +124,11 @@ Make sure the following are installed before starting:
 
 Two scripts handle the entire workflow:
 
-| Script          | When to run                                      |
-| --------------- | ------------------------------------------------ |
-| `./setup.sh`    | Configures Minikube, builds & deploys everything |
-| `./start.sh`    | Starts Minikube, tunnel, port-forwards           |
-| `./pipeline.sh` | Run to update the deployment                     |
+| Script          | When to run                                                   |
+| --------------- | ------------------------------------------------------------- |
+| `./setup.sh`    | Configures Minikube, helm charts, builds & deploys everything |
+| `./start.sh`    | Starts Minikube, tunnel, port-forwards                        |
+| `./pipeline.sh` | Run to update the deployment                                  |
 
 ## Step-by-Step Run Guide
 

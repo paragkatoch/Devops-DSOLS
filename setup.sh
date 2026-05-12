@@ -34,6 +34,19 @@ echo "Starting Minikube with Docker driver..."
 minikube start --driver=docker
 
 
+# --- Configure HELM charts ---
+
+read -r -p "Add helm charts? [y/N] " APPLY_HELM
+if is_yes "${APPLY_HELM:-}"; then
+  echo "Setting HELM charts"
+  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  helm repo update
+  helm install kube-state-metrics prometheus-community/kube-state-metrics -n devops-dsols
+else
+  echo "Skipping HELM charts."
+fi
+
+
 # --- Enable required addons ---
 
 echo "Enabling addons..."
