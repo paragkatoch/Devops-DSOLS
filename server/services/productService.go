@@ -31,6 +31,7 @@ func ProductService(storage storage.Storage, cfg *config.Config) {
 
 	// receive messages from queue
 	rabbitmq.ReceiveMessage(ch, q, func(b []byte) {
+
 		// parse message event
 		var event types.RabbitEvent
 		err := json.Unmarshal(b, &event)

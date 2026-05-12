@@ -99,6 +99,7 @@ func GetProducts(storage storage.Storage) http.HandlerFunc {
 
 func UpdateProductQuantity(publish chan interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("received request")
 		// request body
 		var req struct {
 			Id       string `json:"id" validate:"required"`
