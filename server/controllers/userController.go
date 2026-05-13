@@ -31,7 +31,7 @@ func UserController(storage storage.Storage, cfg *config.Config) {
 
 	router.Handle("/metrics", promhttp.Handler())
 	router.HandleFunc("POST /api/user", prometheus.Instrument(handler.CreateUser(ch, publish), "user", "post_user"))
-	router.HandleFunc("GET /api/user/{id}/order", prometheus.Instrument(handler.GetUserOrders(storage), "user", "get_order"))
+	// router.HandleFunc("GET /api/user/{id}/order", prometheus.Instrument(handler.GetUserOrders(storage), "user", "get_order"))
 	router.HandleFunc("GET /api/user/{id}", prometheus.Instrument(handler.GetUser(storage), "user", "get_user"))
 	router.HandleFunc("GET /api/user", prometheus.Instrument(handler.GetUsers(storage), "user", "get_users"))
 

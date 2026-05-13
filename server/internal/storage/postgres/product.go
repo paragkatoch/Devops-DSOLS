@@ -81,3 +81,48 @@ func (p *Postgres) UpdateProductQuantity(productId string, quantity int) error {
 
 	return nil
 }
+
+func (p *Postgres) UpdateProductQuantityTransaction(products []types.OrderItem) error {
+	ctx := context.Background()
+
+	tx, err := p.Db.Begin(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback(ctx)
+
+	for _, product := range products {
+
+		result, err := tx.Exec(ctx,
+			`
+			UPDATE products
+			SET quantity = quantity + $1
+			WHERE id = $2
+			AND quantity + $1 >= 0
+			`,
+			product.Quantity,
+			product.ProductID,
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if result.RowsAffected() == 0 {
+			return fmt.Errorf(
+				"insufficient stock for product %s",
+				product.ProductID,
+			)
+		}
+	}
+
+	err = tx.Commit(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

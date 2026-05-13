@@ -85,19 +85,19 @@ func GetUsers(storage storage.Storage) http.HandlerFunc {
 	}
 }
 
-func GetUserOrders(storage storage.Storage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// parse
-		id := r.PathValue(("id"))
-		slog.Info("getting user orders with", slog.String("userId", id))
+// func GetUserOrders(storage storage.Storage) http.HandlerFunc {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		// parse
+// 		id := r.PathValue(("id"))
+// 		slog.Info("getting user orders with", slog.String("userId", id))
 
-		orders, err := storage.GetUserOrders(id)
-		if err != nil {
-			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
-			return
-		}
+// 		orders, err := storage.GetUserOrders(id)
+// 		if err != nil {
+// 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
+// 			return
+// 		}
 
-		response.WriteJson(w, http.StatusOK, orders)
-	}
+// 		response.WriteJson(w, http.StatusOK, orders)
+// 	}
 
-}
+// }

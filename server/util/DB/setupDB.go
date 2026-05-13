@@ -31,11 +31,11 @@ func Init(st *postgres.Postgres, component string) {
 		}
 
 		_, err = st.Db.Exec(ctx, `CREATE TABLE IF NOT EXISTS order_items (
-		id SERIAL PRIMARY KEY,
 		order_id TEXT REFERENCES orders(id) ON DELETE CASCADE,
 		product_id TEXT NOT NULL,
 		quantity INT NOT NULL,
-		price BIGINT NOT NULL
+
+		PRIMARY KEY (order_id, product_id)
 	);`)
 
 	case "product":

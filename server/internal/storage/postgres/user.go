@@ -64,31 +64,31 @@ func (p *Postgres) GetUsers() ([]types.User, error) {
 	return users, nil
 }
 
-func (p *Postgres) GetUserOrders(userid string) ([]types.Order, error) {
-	var orders []types.Order
+// func (p *Postgres) GetUserOrders(userid string) ([]types.Order, error) {
+// 	var orders []types.Order
 
-	rows, err := p.Db.Query(context.Background(),
-		`SELECT id, user_id, total_amount, currency, status FROM orders WHERE user_id=$1`,
-		userid,
-	)
+// 	rows, err := p.Db.Query(context.Background(),
+// 		`SELECT id, user_id, total_amount, currency, status FROM orders WHERE user_id=$1`,
+// 		userid,
+// 	)
 
-	if err != nil {
-		errhandler.LogOnError(err, "")
-		return []types.Order{}, fmt.Errorf("something went wrong")
-	}
+// 	if err != nil {
+// 		errhandler.LogOnError(err, "")
+// 		return []types.Order{}, fmt.Errorf("something went wrong")
+// 	}
 
-	defer rows.Close()
+// 	defer rows.Close()
 
-	for rows.Next() {
-		var order types.Order
-		err := rows.Scan(&order.Id, &order.UserID, &order.Items, &order.TotalAmount, &order.Currency)
+// 	for rows.Next() {
+// 		var order types.Order
+// 		err := rows.Scan(&order.Id, &order.UserID, &order.Items, &order.TotalAmount, &order.Currency)
 
-		if err != nil {
-			errhandler.LogOnError(err, "")
-			return []types.Order{}, fmt.Errorf("something went wrong")
-		}
-		orders = append(orders, order)
-	}
+// 		if err != nil {
+// 			errhandler.LogOnError(err, "")
+// 			return []types.Order{}, fmt.Errorf("something went wrong")
+// 		}
+// 		orders = append(orders, order)
+// 	}
 
-	return orders, nil
-}
+// 	return orders, nil
+// }

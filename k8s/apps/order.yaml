@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-controller
+spec:
+  revisionHistoryLimit: 2
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-controller
+  template:
+    metadata:
+      labels:
+        app: order-controller
+    spec:
+      initContainers:
+        - name: wait-for-order-postgres
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z order-postgres 5432; do echo waiting for order-postgres; sleep 2; done;",
+            ]
+        - name: wait-for-rabbitmq
+          image: busybox:1.36
+          command:
+            ["sh", "-c", "until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;"]
+      containers:
+        - name: order-controller
+          image: devops-dsols-app:latest
+          imagePullPolicy: IfNotPresent
+          command: ["./app", "-type=controller", "-component=order", "-config=config/local.yml"]
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - name: app-config-volume
+              mountPath: /app/config/local.yml
+              subPath: local.yml
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "128Mi"
+            limits:
+              cpu: "50m"
+              memory: "256Mi"
+      volumes:
+        - name: app-config-volume
+          configMap:
+            name: app-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-controller
+spec:
+  selector:
+    app: order-controller
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+spec:
+  revisionHistoryLimit: 2
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      initContainers:
+        - name: wait-for-order-postgres
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z order-postgres 5432; do echo waiting for order-postgres; sleep 2; done;",
+            ]
+        - name: wait-for-rabbitmq
+          image: busybox:1.36
+          command:
+            ["sh", "-c", "until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;"]
+      containers:
+        - name: order-service
+          image: devops-dsols-app:latest
+          imagePullPolicy: IfNotPresent
+          command: ["./app", "-type=service", "-component=order", "-config=config/local.yml"]
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - name: app-config-volume
+              mountPath: /app/config/local.yml
+              subPath: local.yml
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "128Mi"
+            limits:
+              cpu: "50m"
+              memory: "256Mi"
+      volumes:
+        - name: app-config-volume
+          configMap:
+            name: app-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+spec:
+  selector:
+    app: order-service
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000

@@ -20,3 +20,10 @@ spec:
                 name: product-controller
                 port:
                   number: 9000
+          - path: /api/order
+            pathType: Prefix
+            backend:
+              service:
+                name: order-controller
+                port:
+                  number: 9000

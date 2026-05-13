@@ -1,19 +1,15 @@
 package controllers
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
-	"time"
 
-	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	config "github.com/paragkatoch/Devops-DSOLS/internal"
+	handler "github.com/paragkatoch/Devops-DSOLS/internal/http/handlers/order"
+	pt "github.com/paragkatoch/Devops-DSOLS/internal/prometheus"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
-	"github.com/paragkatoch/Devops-DSOLS/types"
 	errhandler "github.com/paragkatoch/Devops-DSOLS/util/errHandler"
-	"github.com/paragkatoch/Devops-DSOLS/util/response"
 	serverhandler "github.com/paragkatoch/Devops-DSOLS/util/serverHandler"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -23,55 +19,28 @@ func OrderController(storage storage.Storage, cfg *config.Config) {
 
 	// connect to queue
 	conn, ch := rabbitmq.New(cfg)
+	q := rabbitmq.Connect(ch, "order")
+	publish := rabbitmq.GetPublisher(conn, q)
 
 	defer conn.Close()
 	defer ch.Close()
-
-	q := rabbitmq.Connect(ch, "order")
-	publish := rabbitmq.GetPublisher(conn, q)
 
 	// setup router
 	router := http.NewServeMux()
 
 	router.Handle("/metrics", promhttp.Handler())
-	router.HandleFunc("POST /order", func(w http.ResponseWriter, r *http.Request) {
-		var order types.Order
-
-		// parse
-		if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
-			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
-			return
-		}
-
-		// validate
-		if err := validator.New().Struct(&order); err != nil {
-			validationErr := err.(validator.ValidationErrors)
-			response.WriteJson(w, http.StatusBadRequest, response.ValidationError(validationErr))
-			return
-		}
-
-		order.Status = types.OrderCreated
-		order.Id = uuid.New().String()
-		order.CreatedAt = time.Now()
-		order.UpdatedAt = time.Now()
-
-		// convert to json
-		jsonBody, err := json.Marshal(order)
-		if errhandler.LogOnError(err, "Failed to marshal body") {
-			return
-		}
-
-		// send to queue
-		publish <- jsonBody
-		// rabbitmq.SendMessage(ch, q, jsonBody)
-
-		response.WriteJson(w, http.StatusOK, map[string]string{"success": "ok"})
-	})
+	router.HandleFunc("POST /api/order", pt.Instrument(handler.CreateOrder(publish), "order", "POST /api/order"))
+	router.HandleFunc("GET /api/order/{id}", pt.Instrument(handler.GetOrder(storage), "order", "GET /api/order/{id}"))
+	router.HandleFunc("GET /api/order", pt.Instrument(handler.GetOrders(storage), "order", "GET /api/order"))
 
 	// setup server
 	server := &http.Server{
 		Addr:    cfg.HTTPServer.Addr,
 		Handler: router,
+		// ReadHeaderTimeout: 5 * time.Second,
+		// ReadTimeout:       10 * time.Second,
+		// WriteTimeout:      10 * time.Second,
+		// IdleTimeout:       60 * time.Second,
 	}
 
 	serverhandler.Serve(server, func() {

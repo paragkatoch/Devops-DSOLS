@@ -13,17 +13,25 @@ type RabbitEvent struct {
 }
 
 const (
-	ProductCreate   RabbitEventType = "product.create"
-	ProductQuantity RabbitEventType = "product.quantity"
-
-	UserCreate RabbitEventType = "user.create"
+	ProductCreate          RabbitEventType = "product.create"
+	ProductQuantity        RabbitEventType = "product.quantity"
+	ProductQuantityReserve RabbitEventType = "product.quantity.reserve"
+	UserCreate             RabbitEventType = "user.create"
+	OrderCreate            RabbitEventType = "order.create"
+	OrderStatusUpdate      RabbitEventType = "order.status.update"
 )
+
+type OrderHttp struct {
+	UserID      string `json:"user_id" validate:"required"`
+	TotalAmount int64  `json:"total_amount" validate:"required"`
+	Currency    string `json:"currency" validate:"required"`
+
+	Items []OrderItemHttp `json:"items" validate:"required"`
+}
 
 type Order struct {
 	Id     string `json:"id"`
 	UserID string `json:"user_id" validate:"required"`
-
-	Items []OrderItem `json:"items" validate:"required"`
 
 	TotalAmount int64  `json:"total_amount" validate:"required"`
 	Currency    string `json:"currency" validate:"required"`
@@ -34,10 +42,15 @@ type Order struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-type OrderItem struct {
+type OrderItemHttp struct {
 	ProductID string `json:"product_id" validate:"required"`
 	Quantity  int    `json:"quantity" validate:"required"`
-	Price     int64  `json:"price" validate:"required"`
+}
+
+type OrderItem struct {
+	OrderID   string `json:"order_id" validate:"required"`
+	ProductID string `json:"product_id" validate:"required"`
+	Quantity  int    `json:"quantity" validate:"required"`
 }
 
 type Product struct {
@@ -60,3 +73,13 @@ const (
 	OrderCompleted  OrderStatus = "COMPLETED"
 	OrderFailed     OrderStatus = "FAILED"
 )
+
+type OrderCreateEvent struct {
+	Order Order       `json:"order"`
+	Items []OrderItem `json:"items"`
+}
+
+type ProductReserveEvent struct {
+	OrderID string      `json:"order_id"`
+	Items   []OrderItem `json:"items"`
+}

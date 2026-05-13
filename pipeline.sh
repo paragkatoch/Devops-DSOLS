@@ -27,7 +27,7 @@ kubectl apply -n devops-dsols -f k8s/apps/
 
 
 # echo "Restarting deployments to ensure latest code changes are applied..."
-kubectl rollout restart deployment -n devops-dsols
+# kubectl rollout restart deployment -n devops-dsols
 
 
 echo "Deployment successful!"

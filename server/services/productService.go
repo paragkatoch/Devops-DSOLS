@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -23,6 +24,9 @@ func ProductService(storage storage.Storage, cfg *config.Config) {
 	defer ch.Close()
 
 	q := rabbitmq.Connect(ch, "product")
+
+	orderQ := rabbitmq.Connect(ch, "order")
+	orderPublish := rabbitmq.GetPublisher(conn, orderQ)
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
@@ -67,9 +71,55 @@ func ProductService(storage storage.Storage, cfg *config.Config) {
 			}
 
 			err = storage.UpdateProductQuantity(req.Id, req.Quantity)
-			if errhandler.LogOnError(err, "Failed to create product") {
+			if errhandler.LogOnError(err, "Failed to update product quantity") {
 				return
+			}
+
+		case types.ProductQuantityReserve:
+			var productReserve types.ProductReserveEvent
+
+			err := json.Unmarshal(event.Data, &productReserve)
+			if errhandler.LogOnError(err, "ProductService: Error parsing productReserve") {
+				return
+			}
+
+			err = storage.UpdateProductQuantityTransaction(productReserve.Items)
+			if errhandler.LogOnError(err, "Failed to update product quantity") {
+				err = pushToOrderQueue(orderPublish, productReserve.OrderID, types.OrderFailed)
+				errhandler.LogOnError(err, "Failed to update order status")
+			} else {
+				err = pushToOrderQueue(orderPublish, productReserve.OrderID, types.OrderCompleted)
+				errhandler.LogOnError(err, "Failed to update order status")
 			}
 		}
 	})
+}
+
+func pushToOrderQueue(publish chan interface{}, orderId string, orderStatus types.OrderStatus) error {
+
+	payload := struct {
+		OrderId string            `json:"order_id" validate:"required"`
+		Status  types.OrderStatus `json:"status" validate:"required"`
+	}{
+		OrderId: orderId,
+		Status:  orderStatus,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	event := types.RabbitEvent{
+		Type: types.OrderStatusUpdate,
+		Data: body,
+	}
+
+	select {
+	case publish <- event:
+	default:
+		return errors.New("publisher busy")
+	}
+
+	return nil
 }
