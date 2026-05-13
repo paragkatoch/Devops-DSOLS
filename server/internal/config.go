@@ -13,10 +13,10 @@ type HTTPServer struct {
 }
 
 type Config struct {
-	Env          string     `yaml:"env" env:"ENV" env-required:"true" env-default:"production"`
-	Storage_path string     `yaml:"storage_path" env-required:"true"`
-	Queue_path   string     `yaml:"queue_path" env-required:"true"`
-	HTTPServer   HTTPServer `yaml:"http_server"`
+	Env        string            `yaml:"env" env:"ENV" env-required:"true" env-default:"production"`
+	Databases  map[string]string `yaml:"databases" env-required:"true"`
+	Queue_path string            `yaml:"queue_path" env-required:"true"`
+	HTTPServer HTTPServer        `yaml:"http_server"`
 }
 
 func MustLoad() *Config {

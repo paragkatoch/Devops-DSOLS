@@ -36,10 +36,17 @@ func main() {
 	cfg := config.MustLoad()
 	flag.Parse()
 
-	st := postgres.New(cfg)
+	dbUrl, ok := cfg.Databases[*component]
+
+	if !ok {
+		slog.Error("invalid database component")
+		return
+	}
+
+	st := postgres.New(dbUrl)
 
 	if *componentType == "init" {
-		setupdb.Init(st)
+		setupdb.Init(st, *component)
 		return
 	}
 

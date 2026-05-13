@@ -1,5 +1,8 @@
 env: "local"
-storage_path: "postgres://admin:admin@postgres:5432/retail?sslmode=disable"
+databases:
+  order: "postgres://postgres:password@order-postgres:5432/order_db?sslmode=disable"
+  product: "postgres://postgres:password@product-postgres:5432/product_db?sslmode=disable"
+  user: "postgres://postgres:password@user-postgres:5432/user_db?sslmode=disable"
 queue_path: "amqp://guest:guest@rabbitmq:5672/"
 http_server:
   address: ":9000"
