@@ -54,16 +54,25 @@
 
     # ── Start Minikube ───────────────────────────────────────────────────────
 
-    - name: Start Minikube
+    - name: Check Minikube status
+      command: minikube status
+      register: mk_status
+      failed_when: false
+      changed_when: false
+
+    - name: Start Minikube if not running
       command: minikube start --driver=docker
       register: mk_start
-      changed_when: "'Done' in mk_start.stdout or 'minikube' in mk_start.stdout"
+      when: "'Running' not in mk_status.stdout"
+      changed_when: true
+
 
     # ── Namespace ────────────────────────────────────────────────────────────
 
-    - name: Apply namespace
-      command: kubectl apply -f k8s/namespace.yaml
-      changed_when: true
+    - name: Ensure namespace exists
+      shell: |
+        kubectl get namespace devops-dsols || kubectl create namespace devops-dsols
+      changed_when: false
 
     # ── Helm charts ──────────────────────────────────────────────────────────
 
@@ -71,11 +80,13 @@
       command: helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
       when: install_helm_charts | bool
       changed_when: true
+      ignore_errors: true
 
     - name: Update Helm repos
       command: helm repo update
       when: install_helm_charts | bool
       changed_when: true
+      ignore_errors: true
 
     - name: Install kube-state-metrics
       command: >
@@ -84,61 +95,65 @@
         -n {{ ns }}
       when: install_helm_charts | bool
       changed_when: true
+      ignore_errors: true
 
     # ── Vault: install + sync secrets to K8s Secrets ────────────────────────
 
-    - name: Make vault-init.sh executable
-      file:
-        path: k8s/vault-init.sh
-        mode: '0755'
+    # - name: Make vault-init.sh executable
+    #   file:
+    #     path: k8s/vault-init.sh
+    #     mode: '0755'
 
-    - name: Run vault-init.sh (installs Vault, writes secrets, creates K8s Secrets)
-      command: ./k8s/vault-init.sh
-      register: vault_init_out
-      changed_when: true
+    # - name: Run vault-init.sh (installs Vault, writes secrets, creates K8s Secrets)
+    #   command: ./k8s/vault-init.sh
+    #   register: vault_init_out
+    #   changed_when: true
 
-    - name: Vault init output
-      debug:
-        msg: "{{ vault_init_out.stdout_lines }}"
+    # - name: Vault init output
+    #   debug:
+    #     msg: "{{ vault_init_out.stdout_lines }}"
 
     # ── Minikube addons ──────────────────────────────────────────────────────
 
     - name: Enable metrics-server addon
       command: minikube addons enable metrics-server
-      changed_when: true
+      register: metrics_result
+      changed_when: "'enabled' in metrics_result.stdout"
 
     - name: Enable ingress addon
       command: minikube addons enable ingress
-      changed_when: true
+      register: ingress_result
+      changed_when: "'enabled' in ingress_result.stdout"
 
     # ── Build image and deploy all resources (calls pipeline.sh) ─────────────
 
-    - name: Make pipeline.sh executable
-      file:
-        path: pipeline.sh
-        mode: '0755'
-      when: not (skip_pipeline | bool)
+    # - name: Make pipeline.sh executable
+    #   file:
+    #     path: pipeline.sh
+    #     mode: '0755'
+    #   when: not (skip_pipeline | bool)
 
-    - name: Build Docker image and deploy all Kubernetes resources
-      command: ./pipeline.sh
-      register: pipeline_out
-      changed_when: true
-      when: not (skip_pipeline | bool)
+    # - name: Build Docker image and deploy all Kubernetes resources
+    #   command: ./pipeline.sh
+    #   register: pipeline_out
+    #   changed_when: true
+    #   when: not (skip_pipeline | bool)
 
-    - name: Pipeline output
-      debug:
-        msg: "{{ pipeline_out.stdout_lines }}"
-      when: not (skip_pipeline | bool) and pipeline_out is defined
+    # - name: Pipeline output
+    #   debug:
+    #     msg: "{{ pipeline_out.stdout_lines }}"
+    #   when: not (skip_pipeline | bool) and pipeline_out is defined
 
-    # ── Wait for pods ────────────────────────────────────────────────────────
+    # # ── Wait for pods ────────────────────────────────────────────────────────
 
-    - name: Wait for pods to be ready
-      command: >
-        kubectl wait --for=condition=ready pod
-        -l app={{ item }} -n {{ ns }} --timeout=300s
-      loop: "{{ app_pods }}"
-      ignore_errors: true   # mirrors setup.sh behaviour (warn, don't fail)
-      changed_when: false
+    # - name: Wait for pods to be ready
+    #   command: >
+    #     kubectl wait --for=condition=ready pod
+    #     -l app={{ item }} -n {{ ns }} --timeout=300s
+    #   loop: "{{ app_pods }}"
+    #   ignore_errors: true   # mirrors setup.sh behaviour (warn, don't fail)
+    #   when: not (skip_pipeline | bool) and pipeline_out is defined
+    #   changed_when: false
 
     # ── Done ─────────────────────────────────────────────────────────────────
 

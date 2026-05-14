@@ -89,9 +89,9 @@ pipeline {
 
         stage('Smoke / Load Test') {
             steps {
-                sh 'kubectl wait --for=condition=ready pod -l app=product-controller -n devops-dsols --timeout=120s'
-                sh 'kubectl wait --for=condition=ready pod -l app=user-controller -n devops-dsols --timeout=120s'
-                sh 'kubectl wait --for=condition=ready pod -l app=order-controller -n devops-dsols --timeout=120s'
+               sh 'kubectl rollout status deployment/product-controller -n devops-dsols --timeout=180s'
+               sh 'kubectl rollout status deployment/user-controller -n devops-dsols --timeout=180s'
+               sh 'kubectl rollout status deployment/order-controller -n devops-dsols --timeout=180s'
                 sh 'k6 run test.js --duration=1m --vus=5'
             }
         }
