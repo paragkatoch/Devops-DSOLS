@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: rabbitmq
 spec:
-  revisionHistoryLimit: 2
+  revisionHistoryLimit: 1
   replicas: 1
   selector:
     matchLabels:
@@ -16,7 +16,12 @@ spec:
       containers:
         - name: rabbitmq
           image: rabbitmq:management
-          command: ["bash", "-c", "rabbitmq-plugins enable --offline rabbitmq_prometheus && rabbitmq-server"]
+          command:
+            [
+              "bash",
+              "-c",
+              "rabbitmq-plugins enable --offline rabbitmq_prometheus && rabbitmq-server",
+            ]
           ports:
             - containerPort: 5672
             - containerPort: 15672
@@ -30,10 +35,10 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              cpu: "250m"
+              cpu: "300m"
               memory: "512Mi"
             limits:
-              cpu: "500m"
+              cpu: "900m"
               memory: "1024Mi"
 ---
 apiVersion: v1

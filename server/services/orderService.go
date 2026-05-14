@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	config "github.com/paragkatoch/Devops-DSOLS/internal"
+	"github.com/paragkatoch/Devops-DSOLS/internal/prometheus"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
@@ -61,11 +62,9 @@ func OrderService(storage storage.Storage, cfg *config.Config) {
 			}
 
 			err = pushToProductQueue(productPublish, payload.Order.Id, payload.Items)
-			if errhandler.LogOnError(err, "Failed to update product quantity") {
+			if errhandler.LogOnError(err, "Failed to push to product queue") {
 				err = storage.UpdateOrderStatus(payload.Order.Id, types.OrderFailed)
-				errhandler.LogOnError(err, "Failed to update order status")
-			} else {
-				err = storage.UpdateOrderStatus(payload.Order.Id, types.OrderProcessing)
+				prometheus.OrdersFailed.Inc()
 				errhandler.LogOnError(err, "Failed to update order status")
 			}
 
@@ -82,6 +81,11 @@ func OrderService(storage storage.Storage, cfg *config.Config) {
 			}
 
 			err = storage.UpdateOrderStatus(req.OrderId, req.Status)
+			if req.Status == types.OrderCompleted {
+				prometheus.OrdersCompleted.Inc()
+			} else {
+				prometheus.OrdersFailed.Inc()
+			}
 			if errhandler.LogOnError(err, "Failed to update order status") {
 				return
 			}

@@ -72,21 +72,26 @@ func createWorkers(conn *amqp.Connection, q amqp.Queue, jobQueue chan interface{
 				}
 
 				for job := range jobQueue {
-					sendMessage(ch, q, job)
+					err := sendMessage(ch, q, job)
+					if err != nil {
+						// Break inner loop to recreate channel
+						ch.Close()
+						break
+					}
 				}
 			}
 		}()
 	}
 }
 
-func sendMessage(ch *amqp.Channel, q amqp.Queue, body interface{}) {
+func sendMessage(ch *amqp.Channel, q amqp.Queue, body interface{}) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		log.Println("failed to publish:", err)
-		return
+		log.Println("failed to marshal body:", err)
+		return err
 	}
 
 	err = ch.PublishWithContext(ctx,
@@ -101,11 +106,11 @@ func sendMessage(ch *amqp.Channel, q amqp.Queue, body interface{}) {
 
 	if err != nil {
 		log.Println("failed to publish:", err)
-		return
+		return err
 	}
 
 	// log.Println(" [+] Sent a message")
-
+	return nil
 }
 
 func ReceiveMessage(ch *amqp.Channel, q amqp.Queue, handler func([]byte)) {
@@ -121,12 +126,21 @@ func ReceiveMessage(ch *amqp.Channel, q amqp.Queue, handler func([]byte)) {
 
 	errhandler.FailOnError(err, "Failed to register a consumer")
 
+	// Semaphore to limit concurrent handler executions
+	const maxConcurrent = 10
+	sem := make(chan struct{}, maxConcurrent)
+
 	serverhandler.Async(func() {
 		log.Println(" [*] Waiting for messages.")
 
 		for d := range msgs {
-			// log.Println(" [-] Received a message")
-			handler(d.Body)
+			body := d.Body // capture for goroutine
+			sem <- struct{}{}
+			go func() {
+				defer func() { <-sem }()
+				log.Println(" [-] Received a message from queue")
+				handler(body)
+			}()
 		}
 	})
 }

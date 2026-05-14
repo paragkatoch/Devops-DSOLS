@@ -23,7 +23,7 @@ metadata:
 spec:
   serviceName: order-postgres
   replicas: 1
-  revisionHistoryLimit: 2
+  revisionHistoryLimit: 1
 
   selector:
     matchLabels:
@@ -103,7 +103,7 @@ metadata:
 spec:
   serviceName: product-postgres
   replicas: 1
-  revisionHistoryLimit: 2
+  revisionHistoryLimit: 1
 
   selector:
     matchLabels:

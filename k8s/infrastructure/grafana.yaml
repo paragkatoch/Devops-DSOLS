@@ -14,7 +14,7 @@ kind: Deployment
 metadata:
   name: grafana
 spec:
-  revisionHistoryLimit: 2
+  revisionHistoryLimit: 1
   replicas: 1
   selector:
     matchLabels:

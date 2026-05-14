@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	config "github.com/paragkatoch/Devops-DSOLS/internal"
+	"github.com/paragkatoch/Devops-DSOLS/internal/prometheus"
 	"github.com/paragkatoch/Devops-DSOLS/internal/rabbitmq"
 	"github.com/paragkatoch/Devops-DSOLS/internal/storage"
 	"github.com/paragkatoch/Devops-DSOLS/types"
@@ -73,6 +74,10 @@ func ProductService(storage storage.Storage, cfg *config.Config) {
 			err = storage.UpdateProductQuantity(req.Id, req.Quantity)
 			if errhandler.LogOnError(err, "Failed to update product quantity") {
 				return
+			} else {
+				prometheus.ProductInventory.
+					WithLabelValues(req.Id).
+					Set(float64(req.Quantity))
 			}
 
 		case types.ProductQuantityReserve:
@@ -90,6 +95,12 @@ func ProductService(storage storage.Storage, cfg *config.Config) {
 			} else {
 				err = pushToOrderQueue(orderPublish, productReserve.OrderID, types.OrderCompleted)
 				errhandler.LogOnError(err, "Failed to update order status")
+
+				for _, product := range productReserve.Items {
+					prometheus.ProductInventory.
+						WithLabelValues(product.ProductID).
+						Set(float64(product.Quantity))
+				}
 			}
 		}
 	})

@@ -2,6 +2,12 @@
 # start.sh - Run every time to start the stack (after setup.sh has been run once).
 set -euo pipefail
 
+if [ "$EUID" -eq 0 ]; then
+  echo "Error: Please do not run this script with sudo or as root."
+  echo "Run it as your normal user: ./start.sh"
+  exit 1
+fi
+
 NS=devops-dsols
 PROM_PORT=9091
 GRAF_PORT=3001
@@ -26,12 +32,14 @@ echo "Starting Kubernetes dashboard..."
 nohup minikube dashboard &>/dev/null &
 
 
-# --- Start minikube tunnel in background (requires sudo) ---
+# --- Start API Gateway Port-Forward in background ---
 
-echo "Starting minikube tunnel (you will be prompted for your sudo password)..."
-sudo minikube tunnel &>/dev/null &
+echo "Starting API Gateway port-forward on port 80 (you will be prompted for your sudo password)..."
+# Cache sudo credentials upfront so the background command doesn't hang on a password prompt
+sudo -v
+nohup sudo -E kubectl port-forward svc/ingress-nginx-controller -n ingress-nginx 80:80 >/dev/null 2>&1 &
 TUNNEL_PID=$!
-echo "Tunnel started."
+echo "API Gateway port-forward started."
 sleep 2
 
 

@@ -33,6 +33,8 @@ fi
 echo "Starting Minikube with Docker driver..."
 minikube start --driver=docker
 
+kubectl apply -f k8s/namespace.yaml
+
 
 # --- Configure HELM charts ---
 

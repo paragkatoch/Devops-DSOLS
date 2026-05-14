@@ -25,8 +25,36 @@ var requestDuration = prometheus.NewHistogramVec(
 	[]string{"service", "endpoint"},
 )
 
+var OrdersCompleted = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "order_completed_total",
+		Help: "Total completed orders",
+	},
+)
+
+var OrdersFailed = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "order_failed_total",
+		Help: "Total failed orders",
+	},
+)
+
+var ProductInventory = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "product_inventory",
+		Help: "Current inventory levels",
+	},
+	[]string{"product_id"},
+)
+
 func Register() {
-	prometheus.MustRegister(requestCount, requestDuration)
+	prometheus.MustRegister(
+		requestCount,
+		requestDuration,
+		OrdersCompleted,
+		OrdersFailed,
+		ProductInventory,
+	)
 }
 
 type statusRecorder struct {
