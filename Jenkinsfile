@@ -46,11 +46,17 @@ pipeline {
                 sh 'kubectl apply -n devops-dsols -f k8s/infrastructure/'
             }
         }
-
         stage('Deploy Applications') {
             steps {
-                echo "Restarting deployments to ensure latest code changes are applied..."
+                echo "Deploying Go applications and Ingress..."
+                sh 'kubectl apply -n devops-dsols -f k8s/apps/'
+
+                
+                echo "Restarting all deployments to ensure latest configs/images are applied..."
                 sh 'kubectl rollout restart deployment -n devops-dsols'
+
+                echo "Waiting for 10 seconds before checking RabbitMQ status..."
+                sh "sleep 10"
 
                 echo "Waiting for RabbitMQ rollout to complete (only 1 pod running)..."
                 sh '''
@@ -65,11 +71,8 @@ pipeline {
                 done
                 '''
                 
-                echo "Deleting app controllers and services so they recreate and get fresh RabbitMQ connections..."
-                sh 'kubectl delete deployment user-controller order-controller product-controller user-service order-service product-service -n devops-dsols || true'
-                
-                echo "Applying apps again..."
-                sh 'kubectl apply -n devops-dsols -f k8s/apps/'
+                echo "Performing zero-downtime rollout of applications to ensure they connect to the stable RabbitMQ..."
+                sh 'kubectl rollout restart deployment user-controller order-controller product-controller user-service order-service product-service -n devops-dsols'
             }
         }
     }

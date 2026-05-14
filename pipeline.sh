@@ -25,9 +25,11 @@ kubectl apply -n devops-dsols -f k8s/infrastructure/
 echo "Deploying Go applications and Ingress..."
 kubectl apply -n devops-dsols -f k8s/apps/
 
-
-echo "Restarting deployments to ensure latest code changes are applied..."
+echo "Restarting all deployments to ensure latest configs/images are applied..."
 kubectl rollout restart deployment -n devops-dsols
+
+echo "Waiting for 10 seconds before restarting deployments..."
+sleep 10
 
 echo "Waiting for RabbitMQ rollout to complete (only 1 pod running)..."
 while true; do
@@ -40,10 +42,8 @@ while true; do
   sleep 5
 done
 
-echo "Deleting app controllers and services so they recreate and get fresh RabbitMQ connections..."
-kubectl delete deployment user-controller order-controller product-controller user-service order-service product-service -n devops-dsols || true
+echo "Performing zero-downtime rollout of applications to ensure they connect to the stable RabbitMQ..."
+kubectl rollout restart deployment user-controller order-controller product-controller user-service order-service product-service -n devops-dsols
 
-echo "Applying apps again..."
-kubectl apply -n devops-dsols -f k8s/apps/
 echo "Deployment successful!"
 kubectl get pods -n devops-dsols
