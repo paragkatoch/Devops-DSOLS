@@ -1,0 +1,147 @@
+---
+# ansible/setup.yml
+# Replaces setup.sh — one-time cluster bootstrap.
+# Runs entirely on localhost (no remote machine needed).
+#
+# Usage:
+#   ansible-playbook -i ansible/inventory.ini ansible/setup.yml
+#
+# Override defaults:
+#   ansible-playbook -i ansible/inventory.ini ansible/setup.yml \
+#     -e "configure_minikube=true reset_minikube=true install_helm=true"
+
+- name: Bootstrap Devops-DSOLS Minikube cluster
+  hosts: local
+  connection: local
+  gather_facts: false
+
+  vars:
+    ns: devops-dsols
+    configure_minikube: false   # set true to apply 4 CPU / 4096 MB config
+    reset_minikube: false        # set true to delete existing cluster first
+    install_helm_charts: true    # set false to skip kube-state-metrics install
+    skip_pipeline: false         # set true when called from Jenkins (Jenkins handles build/deploy)
+    minikube_cpus: 4
+    minikube_memory: 4096
+    app_pods:
+      - postgres
+      - rabbitmq
+      - prometheus
+      - grafana
+      - user-controller
+      - user-service
+      - product-controller
+      - product-service
+
+  tasks:
+
+    # ── Minikube config (optional) ───────────────────────────────────────────
+
+    - name: Set Minikube CPU count
+      command: minikube config set cpus {{ minikube_cpus }}
+      when: configure_minikube | bool
+      changed_when: true
+
+    - name: Set Minikube memory
+      command: minikube config set memory {{ minikube_memory }}
+      when: configure_minikube | bool
+      changed_when: true
+
+    - name: Delete existing Minikube cluster
+      command: minikube delete
+      when: configure_minikube | bool and reset_minikube | bool
+      changed_when: true
+
+    # ── Start Minikube ───────────────────────────────────────────────────────
+
+    - name: Start Minikube
+      command: minikube start --driver=docker
+      register: mk_start
+      changed_when: "'Done' in mk_start.stdout or 'minikube' in mk_start.stdout"
+
+    # ── Namespace ────────────────────────────────────────────────────────────
+
+    - name: Apply namespace
+      command: kubectl apply -f k8s/namespace.yaml
+      changed_when: true
+
+    # ── Helm charts ──────────────────────────────────────────────────────────
+
+    - name: Add Prometheus Helm repo
+      command: helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+      when: install_helm_charts | bool
+      changed_when: true
+
+    - name: Update Helm repos
+      command: helm repo update
+      when: install_helm_charts | bool
+      changed_when: true
+
+    - name: Install kube-state-metrics
+      command: >
+        helm upgrade --install kube-state-metrics
+        prometheus-community/kube-state-metrics
+        -n {{ ns }}
+      when: install_helm_charts | bool
+      changed_when: true
+
+    # ── Vault: install + sync secrets to K8s Secrets ────────────────────────
+
+    - name: Make vault-init.sh executable
+      file:
+        path: k8s/vault-init.sh
+        mode: '0755'
+
+    - name: Run vault-init.sh (installs Vault, writes secrets, creates K8s Secrets)
+      command: ./k8s/vault-init.sh
+      register: vault_init_out
+      changed_when: true
+
+    - name: Vault init output
+      debug:
+        msg: "{{ vault_init_out.stdout_lines }}"
+
+    # ── Minikube addons ──────────────────────────────────────────────────────
+
+    - name: Enable metrics-server addon
+      command: minikube addons enable metrics-server
+      changed_when: true
+
+    - name: Enable ingress addon
+      command: minikube addons enable ingress
+      changed_when: true
+
+    # ── Build image and deploy all resources (calls pipeline.sh) ─────────────
+
+    - name: Make pipeline.sh executable
+      file:
+        path: pipeline.sh
+        mode: '0755'
+      when: not (skip_pipeline | bool)
+
+    - name: Build Docker image and deploy all Kubernetes resources
+      command: ./pipeline.sh
+      register: pipeline_out
+      changed_when: true
+      when: not (skip_pipeline | bool)
+
+    - name: Pipeline output
+      debug:
+        msg: "{{ pipeline_out.stdout_lines }}"
+      when: not (skip_pipeline | bool) and pipeline_out is defined
+
+    # ── Wait for pods ────────────────────────────────────────────────────────
+
+    - name: Wait for pods to be ready
+      command: >
+        kubectl wait --for=condition=ready pod
+        -l app={{ item }} -n {{ ns }} --timeout=300s
+      loop: "{{ app_pods }}"
+      ignore_errors: true   # mirrors setup.sh behaviour (warn, don't fail)
+      changed_when: false
+
+    # ── Done ─────────────────────────────────────────────────────────────────
+
+    - name: Setup complete
+      debug:
+        msg: "✅ Setup complete. Run './start.sh' to start the stack next time."

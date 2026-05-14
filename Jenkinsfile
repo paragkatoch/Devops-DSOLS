@@ -7,6 +7,18 @@ pipeline {
     }
 
     stages {
+        stage('Cluster Bootstrap (Ansible)') {
+            steps {
+                echo "Running Ansible setup playbook (Minikube, Vault secrets, Helm charts)..."
+                sh '''
+                ansible-playbook -i ansible/inventory.ini ansible/setup.yml \
+                  -e "configure_minikube=false" \
+                  -e "reset_minikube=false" \
+                  -e "skip_pipeline=true"
+                '''
+            }
+        }
+
         stage('Verify Environment') {
             steps {
                 echo "Verifying Minikube and tools..."
@@ -51,7 +63,6 @@ pipeline {
                 echo "Deploying Go applications and Ingress..."
                 sh 'kubectl apply -n devops-dsols -f k8s/apps/'
 
-                
                 echo "Restarting all deployments to ensure latest configs/images are applied..."
                 sh 'kubectl rollout restart deployment -n devops-dsols'
 
@@ -70,7 +81,7 @@ pipeline {
                   sleep 5
                 done
                 '''
-                
+
                 echo "Performing zero-downtime rollout of applications to ensure they connect to the stable RabbitMQ..."
                 sh 'kubectl rollout restart deployment user-controller order-controller product-controller user-service order-service product-service -n devops-dsols'
             }
