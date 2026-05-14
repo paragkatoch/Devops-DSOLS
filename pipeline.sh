@@ -47,3 +47,6 @@ kubectl rollout restart deployment user-controller order-controller product-cont
 
 echo "Deployment successful!"
 kubectl get pods -n devops-dsols
+
+echo "Running start.sh for port forwarding"
+sh "./start.sh"

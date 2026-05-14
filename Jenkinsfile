@@ -92,7 +92,18 @@ pipeline {
                sh 'kubectl rollout status deployment/product-controller -n devops-dsols --timeout=180s'
                sh 'kubectl rollout status deployment/user-controller -n devops-dsols --timeout=180s'
                sh 'kubectl rollout status deployment/order-controller -n devops-dsols --timeout=180s'
-                sh 'k6 run test.js --duration=1m --vus=5'
+                sh '''
+                echo "Port-forwarding Ingress, Prometheus and Grafana..."
+                kubectl port-forward svc/ingress-nginx-controller -n ingress-nginx 8088:80 > /dev/null 2>&1 &
+                kubectl port-forward svc/prometheus 9092:9090 -n devops-dsols > /dev/null 2>&1 &
+                kubectl port-forward svc/grafana 3002:3000 -n devops-dsols > /dev/null 2>&1 &
+                
+                echo "Waiting for port-forwards to initialize..."
+                sleep 5
+                
+                echo "Running k6 load test..."
+                K6_PROMETHEUS_RW_SERVER_URL="http://127.0.0.1:9092/api/v1/write" k6 run --out experimental-prometheus-rw -e BASE_URL="http://127.0.0.1:8088" test.js --duration=1m --vus=5
+                '''
             }
         }
     }

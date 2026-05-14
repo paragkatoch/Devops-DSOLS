@@ -31,7 +31,7 @@ export default function () {
 }
 
 
-const BASE_URL = 'http://127.0.0.1';
+const BASE_URL = __ENV.BASE_URL || 'http://127.0.0.1';
 
 // ----------------------------------
 // HELPERS
