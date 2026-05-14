@@ -46,8 +46,8 @@ spec:
               memory: "256Mi"
       volumes:
         - name: app-config-volume
-          configMap:
-            name: app-config
+          secret:
+            secretName: app-config
 ---
 apiVersion: v1
 kind: Service
@@ -109,8 +109,8 @@ spec:
               memory: "256Mi"
       volumes:
         - name: app-config-volume
-          configMap:
-            name: app-config
+          secret:
+            secretName: app-config
 ---
 apiVersion: v1
 kind: Service

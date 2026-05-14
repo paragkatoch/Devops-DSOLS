@@ -49,6 +49,13 @@ else
 fi
 
 
+# --- Install Vault and sync secrets to Kubernetes ---
+
+echo "Installing Vault and syncing secrets to Kubernetes Secrets..."
+chmod +x ./k8s/vault-init.sh
+./k8s/vault-init.sh
+
+
 # --- Enable required addons ---
 
 echo "Enabling addons..."

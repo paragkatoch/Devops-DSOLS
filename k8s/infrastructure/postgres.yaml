@@ -44,13 +44,22 @@ spec:
 
           env:
             - name: POSTGRES_DB
-              value: order_db
+              valueFrom:
+                secretKeyRef:
+                  name: order-postgres-creds
+                  key: POSTGRES_DB
 
             - name: POSTGRES_USER
-              value: postgres
+              valueFrom:
+                secretKeyRef:
+                  name: order-postgres-creds
+                  key: POSTGRES_USER
 
             - name: POSTGRES_PASSWORD
-              value: password
+              valueFrom:
+                secretKeyRef:
+                  name: order-postgres-creds
+                  key: POSTGRES_PASSWORD
 
           resources:
             requests:
@@ -124,13 +133,22 @@ spec:
 
           env:
             - name: POSTGRES_DB
-              value: product_db
+              valueFrom:
+                secretKeyRef:
+                  name: product-postgres-creds
+                  key: POSTGRES_DB
 
             - name: POSTGRES_USER
-              value: postgres
+              valueFrom:
+                secretKeyRef:
+                  name: product-postgres-creds
+                  key: POSTGRES_USER
 
             - name: POSTGRES_PASSWORD
-              value: password
+              valueFrom:
+                secretKeyRef:
+                  name: product-postgres-creds
+                  key: POSTGRES_PASSWORD
 
           resources:
             requests:
@@ -204,13 +222,22 @@ spec:
 
           env:
             - name: POSTGRES_DB
-              value: user_db
+              valueFrom:
+                secretKeyRef:
+                  name: user-postgres-creds
+                  key: POSTGRES_DB
 
             - name: POSTGRES_USER
-              value: postgres
+              valueFrom:
+                secretKeyRef:
+                  name: user-postgres-creds
+                  key: POSTGRES_USER
 
             - name: POSTGRES_PASSWORD
-              value: password
+              valueFrom:
+                secretKeyRef:
+                  name: user-postgres-creds
+                  key: POSTGRES_PASSWORD
 
           resources:
             requests:

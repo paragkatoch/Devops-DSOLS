@@ -1,17 +1,7 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: app-config
-data:
-  local.yml: |
-    env: "local"
-    databases:
-      order: "postgres://postgres:password@order-postgres:5432/order_db?sslmode=disable"
-      product: "postgres://postgres:password@product-postgres:5432/product_db?sslmode=disable"
-      user: "postgres://postgres:password@user-postgres:5432/user_db?sslmode=disable"
-    queue_path: "amqp://guest:guest@rabbitmq:5672/"
-    http_server:
-      address: ":9000"
+# app-config is now a Kubernetes Secret created by k8s/vault-init.sh.
+# Vault stores the DSNs; vault-init.sh renders them into a K8s Secret
+# named "app-config" with key "local.yml" — same name/key so app pods
+# (user/product/order) mount it identically, just via secret: instead of configMap:.
 ---
 apiVersion: v1
 kind: ConfigMap
