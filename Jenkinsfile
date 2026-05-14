@@ -75,6 +75,15 @@ pipeline {
                 sh 'kubectl rollout restart deployment user-controller order-controller product-controller user-service order-service product-service -n devops-dsols'
             }
         }
+
+        stage('Smoke / Load Test') {
+            steps {
+                sh 'kubectl wait --for=condition=ready pod -l app=product-controller -n devops-dsols --timeout=120s'
+                sh 'kubectl wait --for=condition=ready pod -l app=user-controller -n devops-dsols --timeout=120s'
+                sh 'kubectl wait --for=condition=ready pod -l app=order-controller -n devops-dsols --timeout=120s'
+                sh 'k6 run test.js --duration=1m --vus=5'  // shorter run for CI
+            }
+        }
     }
 
     post {
