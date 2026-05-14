@@ -71,13 +71,13 @@ func ProductService(storage storage.Storage, cfg *config.Config) {
 				return
 			}
 
-			err = storage.UpdateProductQuantity(req.Id, req.Quantity)
+			newStock, err := storage.UpdateProductQuantity(req.Id, req.Quantity)
 			if errhandler.LogOnError(err, "Failed to update product quantity") {
 				return
 			} else {
 				prometheus.ProductInventory.
 					WithLabelValues(req.Id).
-					Set(float64(req.Quantity))
+					Set(float64(newStock))
 			}
 
 		case types.ProductQuantityReserve:
@@ -88,7 +88,7 @@ func ProductService(storage storage.Storage, cfg *config.Config) {
 				return
 			}
 
-			err = storage.UpdateProductQuantityTransaction(productReserve.Items)
+			newStocks, err := storage.UpdateProductQuantityTransaction(productReserve.Items)
 			if errhandler.LogOnError(err, "Failed to update product quantity") {
 				err = pushToOrderQueue(orderPublish, productReserve.OrderID, types.OrderFailed)
 				errhandler.LogOnError(err, "Failed to update order status")
@@ -96,10 +96,10 @@ func ProductService(storage storage.Storage, cfg *config.Config) {
 				err = pushToOrderQueue(orderPublish, productReserve.OrderID, types.OrderCompleted)
 				errhandler.LogOnError(err, "Failed to update order status")
 
-				for _, product := range productReserve.Items {
+				for productID, newStock := range newStocks {
 					prometheus.ProductInventory.
-						WithLabelValues(product.ProductID).
-						Set(float64(product.Quantity))
+						WithLabelValues(productID).
+						Set(float64(newStock))
 				}
 			}
 		}

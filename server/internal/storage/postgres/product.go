@@ -66,63 +66,67 @@ func (p *Postgres) GetProducts() ([]types.Product, error) {
 	return products, nil
 }
 
-func (p *Postgres) UpdateProductQuantity(productId string, quantity int) error {
-	result, err := p.Db.Exec(context.Background(),
-		`UPDATE products SET quantity = quantity + $1 WHERE id=$2 AND quantity + $1 >= 0`, quantity, productId,
-	)
+func (p *Postgres) UpdateProductQuantity(productId string, quantity int) (int, error) {
+	var newQuantity int
+	err := p.Db.QueryRow(context.Background(),
+		`UPDATE products SET quantity = quantity + $1 WHERE id=$2 AND quantity + $1 >= 0 RETURNING quantity`, quantity, productId,
+	).Scan(&newQuantity)
 
 	if err != nil {
-		return err
+		if err.Error() == "no rows in result set" {
+			return 0, fmt.Errorf("insufficent stock or product not found")
+		}
+		return 0, err
 	}
 
-	if result.RowsAffected() == 0 {
-		return fmt.Errorf("insufficent stock or product not found")
-	}
-
-	return nil
+	return newQuantity, nil
 }
 
-func (p *Postgres) UpdateProductQuantityTransaction(products []types.OrderItem) error {
+func (p *Postgres) UpdateProductQuantityTransaction(products []types.OrderItem) (map[string]int, error) {
 	ctx := context.Background()
 
 	tx, err := p.Db.Begin(ctx)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer tx.Rollback(ctx)
 
+	newStocks := make(map[string]int)
+
 	for _, product := range products {
 
-		result, err := tx.Exec(ctx,
+		var newQuantity int
+		err := tx.QueryRow(ctx,
 			`
 			UPDATE products
-			SET quantity = quantity + $1
+			SET quantity = quantity - $1
 			WHERE id = $2
-			AND quantity + $1 >= 0
+			AND quantity - $1 >= 0
+			RETURNING quantity
 			`,
 			product.Quantity,
 			product.ProductID,
-		)
+		).Scan(&newQuantity)
 
 		if err != nil {
-			return err
+			if err.Error() == "no rows in result set" {
+				return nil, fmt.Errorf(
+					"insufficient stock for product %s",
+					product.ProductID,
+				)
+			}
+			return nil, err
 		}
-
-		if result.RowsAffected() == 0 {
-			return fmt.Errorf(
-				"insufficient stock for product %s",
-				product.ProductID,
-			)
-		}
+		newStocks[product.ProductID] = newQuantity
 	}
 
 	err = tx.Commit(ctx)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return newStocks, nil
 }

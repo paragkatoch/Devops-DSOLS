@@ -32,6 +32,9 @@ echo "Starting Kubernetes dashboard..."
 nohup minikube dashboard &>/dev/null &
 
 
+# --- Start minikube tunnel in background ---
+# nohub sudo -E minikube tunnel
+
 # --- Start API Gateway Port-Forward in background ---
 
 echo "Starting API Gateway port-forward on port 80 (you will be prompted for your sudo password)..."

@@ -12,8 +12,8 @@ type Storage interface {
 	CreateProduct(product types.Product) error
 	GetProduct(productId string) (types.Product, error)
 	GetProducts() ([]types.Product, error)
-	UpdateProductQuantity(productId string, quantity int) error // add/remove product from stock
-	UpdateProductQuantityTransaction(products []types.OrderItem) error
+	UpdateProductQuantity(productId string, quantity int) (int, error) // add/remove product from stock
+	UpdateProductQuantityTransaction(products []types.OrderItem) (map[string]int, error)
 
 	// user
 	CreateUser(user types.User) error
