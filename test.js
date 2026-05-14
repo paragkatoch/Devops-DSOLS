@@ -1,22 +1,24 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
+const DURATION = __ENV.K6_DURATION || '5m';
+const VUS = parseInt(__ENV.K6_VUS || '10');
+
 export const options = {
     scenarios: {
         normal_traffic: {
             executor: 'constant-vus',
-            vus: 10,
-            duration: '5m',
+            vus: VUS,
+            duration: DURATION,
             exec: 'normalTraffic',
         },
         distributed_traffic: {
             executor: 'constant-vus',
-            vus: 10,
-            duration: '5m',
+            vus: VUS,
+            duration: DURATION,
             exec: 'distributedTraffic',
         },
     },
-
     thresholds: {
         http_req_failed: ['rate<0.10'],
         http_req_duration: ['p(95)<1000'],
