@@ -81,7 +81,7 @@ pipeline {
                 sh 'kubectl wait --for=condition=ready pod -l app=product-controller -n devops-dsols --timeout=120s'
                 sh 'kubectl wait --for=condition=ready pod -l app=user-controller -n devops-dsols --timeout=120s'
                 sh 'kubectl wait --for=condition=ready pod -l app=order-controller -n devops-dsols --timeout=120s'
-                sh 'k6 run test.js -e K6_DURATION=1m -e K6_VUS=5'
+                sh 'k6 run test.js --duration=1m --vus=5'
             }
         }
     }
